@@ -44,6 +44,11 @@
       "key": "fingerPrintID",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "simUrl",
+      "value": "http://127.0.0.1:8100",
+      "type": "string"
     }
   ],
   "item": [
@@ -1098,6 +1103,295 @@
               ]
             },
             "description": "cmd: open | close | alwaysOpen | alwaysClose | resume.\n\nalwaysOpen leaves the door unlocked indefinitely — use 'resume' to return it to normal schedule."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Simulator (no hardware needed)",
+      "description": "Drives the simulated terminal from simulator/device.js — see SIMULATOR.md.\n\nStart it with `npm run simulator`, then point the backend at it:\n  DEVICE_HOST=127.0.0.1 DEVICE_PORT=8100 DEVICE_USER=admin DEVICE_PASS=simulator123 npm start\n\n{{simUrl}} defaults to http://127.0.0.1:8100. For a fleet (`npm run fleet`), change it per door: 8100, 8101, 8102...\n\nThese hit the SIMULATOR, not the backend — everything else in this collection hits the backend.",
+      "item": [
+        {
+          "name": "Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{simUrl}}/sim/status",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "status"
+              ]
+            },
+            "description": "Persons, fingerprints, events held in the device log, registered webhook, push counters."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "console.log(`online=${d.online} persons=${d.persons} deviceLog=${d.eventsStored} pushed=${d.pushed} failures=${d.pushFailures}`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Punch - fingerprint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{simUrl}}/sim/punch",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "punch"
+              ]
+            },
+            "description": "Triggers a fingerprint punch (minor 113). The simulator records it to its own log and pushes it to the registered webhook.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"method\": \"fingerprint\",\n  \"doorNo\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('pushed to the backend', () => pm.expect(d.push.pushed).to.be.true);",
+                  "console.log(`serial=${d.event.serialNo} minor=${d.event.minor}`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Punch - card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{simUrl}}/sim/punch",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "punch"
+              ]
+            },
+            "description": "Card punch (minor 38). Uses a card number previously assigned to this person, if any.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"method\": \"card\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Punch - face",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{simUrl}}/sim/punch",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "punch"
+              ]
+            },
+            "description": "Face punch (minor 75).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"method\": \"face\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Punch - face FAILED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{simUrl}}/sim/punch",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "punch"
+              ]
+            },
+            "description": "Failed face match (minor 76). Stored with success = 0.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"method\": \"face\",\n  \"success\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Punch - exit button",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{simUrl}}/sim/punch",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "punch"
+              ]
+            },
+            "description": "Exit button (minor 27). No person attached — verifies the heartbeat filter does not drop it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"exitButton\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Punch - custom code (e.g. PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{simUrl}}/sim/punch",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "punch"
+              ]
+            },
+            "description": "PIN has no minor code I could confirm in Hikvision's documentation, so the simulator does not guess one. Pass an explicit `minor` to simulate any code.\n\nAn unmapped code is stored and logged as 'UNMAPPED EVENT CODE' rather than dropped.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"method\": \"pin\",\n  \"minor\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Go OFFLINE",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{simUrl}}/sim/offline",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "offline"
+              ]
+            },
+            "description": "Device stops answering ISAPI and stops pushing. Punches still record to its own log — this is the outage scenario.\n\nPunch a few times after this, confirm they are absent from GET /events, then go online and backfill."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('offline', () => pm.expect(pm.response.json().online).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Go ONLINE",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{simUrl}}/sim/online",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "online"
+              ]
+            },
+            "description": "Device returns. The backend's auto-sync recovers queued punches on the next sweep, or force it with POST /events/backfill."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('online', () => pm.expect(pm.response.json().online).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear device event log",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{simUrl}}/sim/reset",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "reset"
+              ]
+            },
+            "description": "Empties the simulated device's log and push counters. Local only to the simulator; your backend DB is untouched."
           }
         }
       ]

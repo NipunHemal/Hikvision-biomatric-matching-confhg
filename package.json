@@ -11,7 +11,9 @@
     "register": "node src/registerWebhook.js",
     "show-hosts": "node src/registerWebhook.js --show",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "backfill": "node src/backfill.js"
+    "backfill": "node src/backfill.js",
+    "simulator": "node simulator/device.js",
+    "fleet": "node simulator/fleet.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
