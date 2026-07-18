@@ -16,11 +16,22 @@ const SILENCE_LIMIT_MS = 90_000;
 let lastPostAt = null;
 let lastPostFrom = null;
 let online = null; // null = unknown, before the first observation
+let onRecovery = null; // set by the server to trigger a catch-up sweep
+
+function setRecoveryHandler(fn) {
+  onRecovery = fn;
+}
 
 function markSeen(ip) {
   lastPostAt = Date.now();
   lastPostFrom = ip;
-  if (online === false) console.log(`[device] back online — POST received from ${ip}`);
+
+  // A device that was unreachable has been queuing punches locally. Pull them
+  // the moment it can talk to us again, rather than waiting for the next tick.
+  if (online === false) {
+    console.log(`[device] back online — POST received from ${ip}`);
+    if (onRecovery) onRecovery('device recovery');
+  }
   online = true;
 }
 
@@ -91,4 +102,11 @@ function startMonitor() {
   return timer;
 }
 
-module.exports = { markSeen, probe, report, startMonitor, SILENCE_LIMIT_MS };
+module.exports = {
+  markSeen,
+  probe,
+  report,
+  startMonitor,
+  setRecoveryHandler,
+  SILENCE_LIMIT_MS,
+};

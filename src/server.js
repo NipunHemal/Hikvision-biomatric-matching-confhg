@@ -4,12 +4,20 @@ const express = require("express");
 const multer = require("multer");
 
 const config = require("./config");
-const { insertEvent, listEvents, getEvent } = require("./db");
+const {
+  insertEvent,
+  listEvents,
+  getEvent,
+  eventsMatchingPurge,
+  purgeEvents,
+  totalEvents,
+} = require("./db");
 const { extractAlert, normalise, isHeartbeat } = require("./parseEvent");
 const { IsapiClient, DeviceError } = require("./isapi");
 const { backfill } = require("./backfill");
 const { captureRaw, logRequest, recent, logEvent } = require("./debug");
-const { markSeen, report, startMonitor } = require("./health");
+const { markSeen, report, startMonitor, setRecoveryHandler } = require("./health");
+const syncLoop = require("./syncLoop");
 
 const app = express();
 const device = new IsapiClient();
@@ -124,6 +132,76 @@ app.post(
     );
   }),
 );
+
+// Purge local rows. LOCAL ONLY — the terminal's own event log is never touched,
+// so a purge here can always be re-filled with POST /events/backfill.
+//
+// Dry run is the DEFAULT: pass ?confirm=true to actually delete. Deleting
+// attendance records should take a deliberate second call.
+//
+//   DELETE /events?before=2026-07-01                 -> preview
+//   DELETE /events?before=2026-07-01&confirm=true    -> delete
+//   DELETE /events?source=backfill&confirm=true      -> drop just backfilled rows
+app.delete("/events", (req, res) => {
+  const { before, source, confirm, all } = req.query;
+
+  if (!before && !source && all !== "true") {
+    return res.status(400).json({
+      error: "Refusing to purge every event without an explicit filter",
+      how: "Pass ?before=<ISO date> and/or ?source=webhook|backfill, or ?all=true to mean it.",
+    });
+  }
+  if (source && !["webhook", "backfill"].includes(source)) {
+    return res.status(400).json({ error: 'source must be "webhook" or "backfill"' });
+  }
+
+  const { rows, range } = eventsMatchingPurge({ before, source });
+  const pictures = rows.filter((r) => r.picture_path).map((r) => r.picture_path);
+
+  const summary = {
+    matched: rows.length,
+    oldest: range.oldest,
+    newest: range.newest,
+    picturesAffected: pictures.length,
+    totalBefore: totalEvents(),
+  };
+
+  if (confirm !== "true") {
+    return res.json({
+      dryRun: true,
+      ...summary,
+      note: "Nothing deleted. Repeat with &confirm=true to apply.",
+      deviceLogUntouched: true,
+    });
+  }
+
+  const deleted = purgeEvents({ before, source });
+
+  // Remove the snapshots too, or they become orphans nothing can reach.
+  let picturesDeleted = 0;
+  for (const rel of pictures) {
+    try {
+      fs.unlinkSync(path.join(__dirname, "..", rel));
+      picturesDeleted += 1;
+    } catch {
+      // already gone, or never written — not worth failing the purge over
+    }
+  }
+
+  console.log(
+    `[purge] deleted ${deleted} events` +
+      `${before ? ` before ${before}` : ""}${source ? ` source=${source}` : ""}` +
+      `, ${picturesDeleted} pictures`,
+  );
+
+  res.json({
+    dryRun: false,
+    deleted,
+    picturesDeleted,
+    remaining: totalEvents(),
+    deviceLogUntouched: true,
+  });
+});
 
 app.use("/pictures", express.static(picturesDir));
 
@@ -294,6 +372,8 @@ app.use((err, req, res, next) => {
 });
 
 startMonitor();
+setRecoveryHandler(syncLoop.sync);
+syncLoop.start();
 
 app.listen(config.port, () => {
   const root = `http://${config.listenerHost}:${config.port}`;

@@ -1,18 +1,50 @@
 {
   "info": {
     "name": "Hikvision DS-K1T808MFWX-B Backend",
-    "description": "Local backend for the DS-K1T808MFWX-B access terminal.\n\nSet the collection variables first (baseUrl, employeeNo, webhookUser/webhookPass).\n\nRequests marked [WRITES TO DEVICE] change state on the real terminal. Requests marked [DESTRUCTIVE] remove data. Read the folder descriptions before running either against production hardware.",
+    "description": "Local backend for the DS-K1T808MFWX-B access terminal.\n\nSelect the 'Hik backend - local' environment before running.\n\nMost requests carry test assertions, so the whole collection can be run in Collection Runner or with newman.\n\nRequests marked [WRITES TO DEVICE] change state on the real terminal. Requests marked [DESTRUCTIVE] remove data. Read the folder descriptions before running either against production hardware.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
-    { "key": "employeeNo", "value": "1042", "type": "string" },
-    { "key": "webhookUser", "value": "hemal", "type": "string" },
-    { "key": "webhookPass", "value": "hemal", "type": "string" },
-    { "key": "deviceIp", "value": "10.222.109.123", "type": "string" },
-    { "key": "eventId", "value": "1", "type": "string" },
-    { "key": "doorNo", "value": "1", "type": "string" },
-    { "key": "fingerPrintID", "value": "1", "type": "string" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "employeeNo",
+      "value": "1042",
+      "type": "string"
+    },
+    {
+      "key": "webhookUser",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "webhookPass",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceIp",
+      "value": "10.222.109.123",
+      "type": "string"
+    },
+    {
+      "key": "eventId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "doorNo",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "fingerPrintID",
+      "value": "1",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -24,9 +56,29 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
             "description": "Answers any HTTP method."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('reports uptime', () => pm.expect(pm.response.json()).to.have.property('uptime'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Recent raw requests",
@@ -35,8 +87,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/debug/requests",
-              "host": ["{{baseUrl}}"],
-              "path": ["debug", "requests"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debug",
+                "requests"
+              ]
             },
             "description": "Last 20 inbound requests with full headers and bodies, newest first. Needs DEBUG_REQUESTS=true. Logs the Authorization header, so keep it off in production."
           }
@@ -53,19 +110,63 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
-                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{webhookUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{webhookPass}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:00:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 113,\n    \"employeeNoString\": \"{{employeeNo}}\",\n    \"name\": \"Supun\",\n    \"currentVerifyMode\": \"fingerprintOrCard\",\n    \"attendanceStatus\": \"checkIn\",\n    \"serialNo\": 1001,\n    \"doorNo\": 1\n  }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "subEventType 113 = fingerprint auth success. The minor code — not currentVerifyMode — determines verify_method."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('acked 200', () => pm.response.to.have.status(200));",
+                  "// The webhook acks before storing, so give the write a moment, then confirm.",
+                  "setTimeout(() => {",
+                  "  pm.sendRequest(`${pm.variables.get('baseUrl')}/events?limit=1`, (err, res) => {",
+                  "    if (err) return;",
+                  "    const top = res.json()[0] || {};",
+                  "    pm.test('stored as a fingerprint punch', () => {",
+                  "      pm.expect(top.verify_method).to.eql('fingerprint');",
+                  "      pm.expect(top.event_name).to.eql('fingerprintAuthSuccess');",
+                  "    });",
+                  "  });",
+                  "}, 300);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Card punch (JSON)",
@@ -73,19 +174,52 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
-                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{webhookUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{webhookPass}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:01:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 38,\n    \"employeeNoString\": \"2077\",\n    \"name\": \"Nimal\",\n    \"cardNo\": \"0012345678\",\n    \"serialNo\": 1002,\n    \"doorNo\": 1\n  }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "subEventType 38 = card auth success."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('acked 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Face auth FAILED (JSON)",
@@ -93,19 +227,52 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
-                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{webhookUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{webhookPass}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:02:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 76,\n    \"employeeNoString\": \"3001\",\n    \"name\": \"Kamal\",\n    \"serialNo\": 1003\n  }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "subEventType 76 = face auth fail. Stored with success = 0."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('acked 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Punch with snapshot (multipart)",
@@ -113,8 +280,16 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
-                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{webhookUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{webhookPass}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
@@ -127,10 +302,24 @@
                   "value": "{\"ipAddress\":\"{{deviceIp}}\",\"eventType\":\"AccessControllerEvent\",\"dateTime\":\"2026-07-19T09:03:00+05:30\",\"AccessControllerEvent\":{\"majorEventType\":5,\"subEventType\":75,\"employeeNoString\":\"{{employeeNo}}\",\"name\":\"Supun\",\"serialNo\":1004}}",
                   "type": "text"
                 },
-                { "key": "Picture", "type": "file", "src": [], "description": "Attach any JPEG" }
+                {
+                  "key": "Picture",
+                  "type": "file",
+                  "src": [],
+                  "description": "Attach any JPEG"
+                }
               ]
             },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "What the device sends when picture upload is enabled: a JSON part named event_log plus a JPEG part. Pick a file for 'Picture' before sending."
           }
         },
@@ -140,19 +329,60 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
-                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{webhookUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{webhookPass}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:04:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 0,\n    \"serialNo\": 1005\n  }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "Keep-alive with no credential attached. Acked with 200 but not stored — check GET /events to confirm it did not appear."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('acked 200', () => pm.response.to.have.status(200));",
+                  "// A heartbeat must never become a stored punch.",
+                  "setTimeout(() => {",
+                  "  pm.sendRequest(`${pm.variables.get('baseUrl')}/events?limit=1`, (err, res) => {",
+                  "    if (err) return;",
+                  "    const top = res.json()[0] || {};",
+                  "    pm.test('not stored as a punch', () => pm.expect(top.serial_no).to.not.eql(1005));",
+                  "  });",
+                  "}, 300);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Punch as XML (device may send this)",
@@ -160,30 +390,95 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
-                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{webhookUser}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{webhookPass}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/xml" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<EventNotificationAlert version=\"2.0\" xmlns=\"http://www.isapi.org/ver20/XMLSchema\">\n  <ipAddress>{{deviceIp}}</ipAddress>\n  <eventType>AccessControllerEvent</eventType>\n  <dateTime>2026-07-19T09:05:00+05:30</dateTime>\n  <AccessControllerEvent>\n    <majorEventType>5</majorEventType>\n    <subEventType>38</subEventType>\n    <employeeNoString>2077</employeeNoString>\n    <name>Nimal</name>\n    <cardNo>0012345678</cardNo>\n    <serialNo>1006</serialNo>\n  </AccessControllerEvent>\n</EventNotificationAlert>"
             },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "Firmware V3.25.x reports parameterFormatType as blank and may push XML rather than JSON. The webhook accepts both — this request proves the XML path works."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('XML payload accepted', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "No credentials (401 only if auth is on)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"eventType\": \"AccessControllerEvent\"\n}" },
-            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"AccessControllerEvent\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/hik/event",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "hik",
+                "event"
+              ]
+            },
             "description": "Expect 401 when WEBHOOK_USER is set in .env, and 200 when it is blank.\n\nIt is currently BLANK — webhook auth is disabled to match the device, which was set to httpAuthenticationMethod=none via the web UI. So this returns 200 today. Run 'npm run register' to turn auth back on at both ends."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 when WEBHOOK_USER is set in .env, 200 when it is blank.",
+                  "pm.test('401 or 200 depending on auth config', () => pm.expect([200,401]).to.include(pm.response.code));",
+                  "console.log(pm.response.code === 401 ? 'webhook auth is ON' : 'webhook auth is OFF');"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -197,17 +492,48 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/events?limit=50",
-              "host": ["{{baseUrl}}"],
-              "path": ["events"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
               "query": [
-                { "key": "limit", "value": "50" },
-                { "key": "employeeNo", "value": "{{employeeNo}}", "disabled": true },
-                { "key": "method", "value": "fingerprint", "disabled": true },
-                { "key": "since", "value": "2026-07-19T00:00:00", "disabled": true }
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "employeeNo",
+                  "value": "{{employeeNo}}",
+                  "disabled": true
+                },
+                {
+                  "key": "method",
+                  "value": "fingerprint",
+                  "disabled": true
+                },
+                {
+                  "key": "since",
+                  "value": "2026-07-19T00:00:00",
+                  "disabled": true
+                }
               ]
             },
             "description": "method accepts fingerprint | card | face | button."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Raw payload for one event",
@@ -216,10 +542,96 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/events/{{eventId}}/raw",
-              "host": ["{{baseUrl}}"],
-              "path": ["events", "{{eventId}}", "raw"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "{{eventId}}",
+                "raw"
+              ]
             },
             "description": "The exact JSON the device sent for that event."
+          }
+        },
+        {
+          "name": "Purge local events - DRY RUN",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events?before=2026-06-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "before",
+                  "value": "2026-06-01"
+                },
+                {
+                  "key": "source",
+                  "value": "backfill",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Previews what a purge would remove — matched count, oldest/newest, pictures affected. Deletes NOTHING without &confirm=true.\n\nLOCAL ONLY: the terminal's own event log is never touched, so anything purged here can be recovered with POST /events/backfill."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('is a dry run', () => pm.expect(d.dryRun).to.be.true);",
+                  "pm.test('device log untouched', () => pm.expect(d.deviceLogUntouched).to.be.true);",
+                  "console.log(`would delete ${d.matched} event(s), ${d.picturesAffected} picture(s)`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Purge local events - CONFIRM [DESTRUCTIVE]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events?before=2026-06-01&confirm=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "before",
+                  "value": "2026-06-01"
+                },
+                {
+                  "key": "confirm",
+                  "value": "true"
+                },
+                {
+                  "key": "source",
+                  "value": "backfill",
+                  "disabled": true
+                },
+                {
+                  "key": "all",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Deletes the matched rows and their snapshot files. Run the DRY RUN first and read the counts.\n\nA filter is required — ?before= and/or ?source=. Enable ?all=true only if you genuinely mean every row.\n\nThese are attendance records; the device log corroborates them, so prefer purging by date rather than wiping everything."
           }
         },
         {
@@ -229,15 +641,41 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/events/backfill",
-              "host": ["{{baseUrl}}"],
-              "path": ["events", "backfill"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "backfill"
+              ],
               "query": [
-                { "key": "start", "value": "2026-07-01T00:00:00", "disabled": true },
-                { "key": "end", "value": "2026-07-19T23:59:59", "disabled": true }
+                {
+                  "key": "start",
+                  "value": "2026-07-01T00:00:00",
+                  "disabled": true
+                },
+                {
+                  "key": "end",
+                  "value": "2026-07-19T23:59:59",
+                  "disabled": true
+                }
               ]
             },
-            "description": "Reads the terminal's own event log to recover punches missed during downtime. Read-only on the device; writes only to the local DB. Duplicates are ignored, so re-running is safe."
-          }
+            "description": "Reads the terminal's own event log to recover punches missed during downtime. Read-only on the device; writes only to the local DB. Duplicates are ignored, so re-running is safe.\n\nThis also runs AUTOMATICALLY — on server startup, every BACKFILL_INTERVAL_MIN minutes (default 15), and the moment a device that had gone quiet starts POSTing again. Use this request to force a sweep now, or to backfill a specific historical window with ?start= and ?end=.\n\nWithout parameters it resumes from the newest stored event, rewound by BACKFILL_OVERLAP_MIN (default 60) so a punch in the same second as the last sync is not skipped."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "console.log(`scanned ${d.scanned}, inserted ${d.inserted}, skipped ${d.skipped}`);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -252,11 +690,37 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/device/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["device", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "device",
+                "health"
+              ]
             },
             "description": "Returns 200 when healthy, 503 when not — usable directly as a monitoring probe.\n\nChecks both directions:\n- device.reachable — can this server reach the terminal (ISAPI probe + latency)\n- webhook.receiving — has the terminal POSTed recently (it sends a keep-alive about every 30s; stale after 90s)\n\nBoth must be true for healthy. reachable=true with receiving=false means the terminal is up but cannot deliver events — check the inbound firewall rule, LISTENER_HOST, and that the auth setting matches on both sides."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('answers 200 (healthy) or 503 (not)', () => pm.expect([200,503]).to.include(pm.response.code));",
+                  "const d = pm.response.json();",
+                  "pm.test('reports both directions', () => {",
+                  "  pm.expect(d.device).to.have.property('reachable');",
+                  "  pm.expect(d.webhook).to.have.property('receiving');",
+                  "});",
+                  "// Surface the actual state in the runner output rather than only pass/fail.",
+                  "console.log(`device reachable=${d.device.reachable} | webhook receiving=${d.webhook.receiving}`);",
+                  "if (d.device.reachable && !d.webhook.receiving) {",
+                  "  console.warn('Device is up but cannot reach this server — check the inbound firewall rule.');",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Device info",
@@ -265,11 +729,28 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/device/info",
-              "host": ["{{baseUrl}}"],
-              "path": ["device", "info"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "device",
+                "info"
+              ]
             },
             "description": "Model and firmware. Run this first — if it fails, nothing else will work. A 502 with a lock message means the admin account is locked; stop and wait it out rather than retrying."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('returns a model', () => pm.expect(pm.response.json().DeviceInfo.model).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Device time",
@@ -278,8 +759,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/device/time",
-              "host": ["{{baseUrl}}"],
-              "path": ["device", "time"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "device",
+                "time"
+              ]
             },
             "description": "Clock and NTP settings. Drift over 5 minutes breaks Digest auth."
           }
@@ -291,8 +777,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/device/hosts",
-              "host": ["{{baseUrl}}"],
-              "path": ["device", "hosts"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "device",
+                "hosts"
+              ]
             },
             "description": "Where the device is currently configured to POST events. Use this to confirm 'npm run register' worked."
           }
@@ -308,20 +799,53 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/persons", "host": ["{{baseUrl}}"], "path": ["persons"] },
+            "url": {
+              "raw": "{{baseUrl}}/persons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons"
+              ]
+            },
             "description": "Auto-paginated. Each person carries numOfFP / numOfCard / numOfFace showing what is enrolled."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Create or update person [WRITES TO DEVICE]",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"name\": \"Supun\",\n  \"userType\": \"normal\",\n  \"doorNo\": 1,\n  \"beginTime\": \"2026-01-01T00:00:00\",\n  \"endTime\": \"2030-12-31T23:59:59\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/persons", "host": ["{{baseUrl}}"], "path": ["persons"] },
+            "url": {
+              "raw": "{{baseUrl}}/persons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons"
+              ]
+            },
             "description": "Creates, or updates in place if employeeNo already exists. employeeNo is your join key to your own user table — set it deliberately."
           }
         },
@@ -329,15 +853,26 @@
           "name": "Assign card [WRITES TO DEVICE]",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"cardNo\": \"0012345678\",\n  \"cardType\": \"normalCard\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/card",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "card"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "card"
+              ]
             }
           }
         },
@@ -349,13 +884,24 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "face", "type": "file", "src": [], "description": "JPEG, max 200 KB, min 80x80, single frontal face" }
+                {
+                  "key": "face",
+                  "type": "file",
+                  "src": [],
+                  "description": "JPEG, max 200 KB, min 80x80, single frontal face"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/face",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "face"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "face"
+              ]
             }
           }
         },
@@ -366,8 +912,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}"
+              ]
             },
             "description": "Removes the person and their credentials from the terminal. There is no undo — verify employeeNo before sending."
           }
@@ -385,8 +936,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprints",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "fingerprints"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "fingerprints"
+              ]
             }
           }
         },
@@ -394,12 +951,26 @@
           "name": "Enrol by scanning now [WRITES TO DEVICE]",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"fingerPrintID\": {{fingerPrintID}}\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerPrintID\": {{fingerPrintID}}\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprint",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "fingerprint"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "fingerprint"
+              ]
             },
             "description": "Blocks until a finger is presented at the terminal (up to 60s), then applies the template and polls until the device confirms. fingerPrintID is the slot, 1-10, max 10 per person.\n\nEnrol two fingers per person — cuts and dry skin cause lockouts."
           }
@@ -408,15 +979,26 @@
           "name": "Enrol from existing template [WRITES TO DEVICE]",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"fingerPrintID\": {{fingerPrintID}},\n  \"fingerData\": \"PASTE_BASE64_TEMPLATE_HERE\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprint",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "fingerprint"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "fingerprint"
+              ]
             },
             "description": "Applies a template captured earlier — use this to enrol the same finger onto several terminals without re-scanning."
           }
@@ -425,12 +1007,25 @@
           "name": "Capture template only",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"fingerNo\": 1\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerNo\": 1\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/fingerprint/capture",
-              "host": ["{{baseUrl}}"],
-              "path": ["fingerprint", "capture"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "fingerprint",
+                "capture"
+              ]
             },
             "description": "Scans and returns {fingerNo, quality, fingerData} without assigning it to anyone. Quality is 1-100. The template is biometric data — do not log or store it casually."
           }
@@ -442,8 +1037,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprints/{{fingerPrintID}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "fingerprints", "{{fingerPrintID}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "fingerprints",
+                "{{fingerPrintID}}"
+              ]
             }
           }
         },
@@ -454,8 +1056,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprints",
-              "host": ["{{baseUrl}}"],
-              "path": ["persons", "{{employeeNo}}", "fingerprints"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "persons",
+                "{{employeeNo}}",
+                "fingerprints"
+              ]
             },
             "description": "Removes every enrolled finger for this person. No undo."
           }
@@ -469,12 +1077,25 @@
           "name": "Control door [WRITES TO DEVICE]",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"cmd\": \"open\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cmd\": \"open\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/doors/{{doorNo}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["doors", "{{doorNo}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "doors",
+                "{{doorNo}}"
+              ]
             },
             "description": "cmd: open | close | alwaysOpen | alwaysClose | resume.\n\nalwaysOpen leaves the door unlocked indefinitely — use 'resume' to return it to normal schedule."
           }

@@ -18,6 +18,14 @@ module.exports = {
   // memory for GET /debug/requests. Useful when bringing a new device online.
   debugRequests: bool(process.env.DEBUG_REQUESTS, false),
 
+  // Punches made while this server was unreachable exist only in the device's
+  // own log. Backfill sweeps them up; these control how often that happens.
+  backfillOnStart: bool(process.env.BACKFILL_ON_START, true),
+  backfillIntervalMin: Number(str(process.env.BACKFILL_INTERVAL_MIN) || 15),
+  // Re-scan this far back before the newest stored event, so a punch that
+  // landed in the same second as the last sync is not stepped over.
+  backfillOverlapMin: Number(str(process.env.BACKFILL_OVERLAP_MIN) || 60),
+
   device: {
     host: str(process.env.DEVICE_HOST) || '192.168.1.64',
     port: Number(str(process.env.DEVICE_PORT) || 80),

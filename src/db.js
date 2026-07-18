@@ -75,9 +75,50 @@ function getEvent(id) {
   return db.prepare('SELECT * FROM events WHERE id = ?').get(id);
 }
 
+// Builds the WHERE clause shared by the purge count and the purge itself, so
+// the dry run can never disagree with what the delete would remove.
+function purgeFilter({ before, source }) {
+  const where = [];
+  const params = [];
+  if (before) (where.push('event_time < ?'), params.push(before));
+  if (source) (where.push('source = ?'), params.push(source));
+  return { clause: where.length ? ` WHERE ${where.join(' AND ')}` : '', params };
+}
+
+// Rows that a purge with these options would remove. Picture paths come back so
+// the caller can delete the files alongside the rows.
+function eventsMatchingPurge(opts) {
+  const { clause, params } = purgeFilter(opts);
+  const rows = db
+    .prepare(`SELECT id, event_time, source, picture_path FROM events${clause}`)
+    .all(...params);
+  const range = db
+    .prepare(`SELECT MIN(event_time) AS oldest, MAX(event_time) AS newest FROM events${clause}`)
+    .get(...params);
+  return { rows, range };
+}
+
+function purgeEvents(opts) {
+  const { clause, params } = purgeFilter(opts);
+  return db.prepare(`DELETE FROM events${clause}`).run(...params).changes;
+}
+
+function totalEvents() {
+  return db.prepare('SELECT COUNT(*) AS c FROM events').get().c;
+}
+
 // Newest event we hold, used as the starting point for backfill.
 function latestEventTime() {
   return db.prepare('SELECT MAX(event_time) AS t FROM events').get().t;
 }
 
-module.exports = { db, insertEvent, listEvents, getEvent, latestEventTime };
+module.exports = {
+  db,
+  insertEvent,
+  listEvents,
+  getEvent,
+  latestEventTime,
+  eventsMatchingPurge,
+  purgeEvents,
+  totalEvents,
+};

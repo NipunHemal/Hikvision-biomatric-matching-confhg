@@ -14,13 +14,21 @@ const { fromAcsEvent, isHeartbeat } = require('./parseEvent');
 // The device wants local ISO without a timezone suffix.
 const isoLocal = (d) => d.toISOString().slice(0, 19);
 
+// Newest stored event, rewound by the overlap so a punch recorded in the same
+// second as the last sync is not skipped. Dedup makes the re-scan free.
+function resumePoint() {
+  const latest = latestEventTime();
+  if (!latest) return isoLocal(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+  const parsed = new Date(latest);
+  if (Number.isNaN(parsed.getTime())) return latest.slice(0, 19); // odd format, use as-is
+  return isoLocal(new Date(parsed.getTime() - config.backfillOverlapMin * 60 * 1000));
+}
+
 async function backfill({ startTime, endTime } = {}) {
   const client = new IsapiClient();
 
-  const start =
-    startTime ||
-    latestEventTime()?.slice(0, 19) ||
-    isoLocal(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const start = startTime || resumePoint();
   const end = endTime || isoLocal(new Date());
 
   let scanned = 0;
