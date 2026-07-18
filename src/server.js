@@ -192,13 +192,67 @@ app.post(
   }),
 );
 
-// Fingerprints cannot be enrolled over ISAPI on this model — the template has to
-// be captured by the terminal's own sensor. Say so instead of 404-ing.
-app.post("/persons/:employeeNo/fingerprint", (req, res) =>
-  res.status(501).json({
-    error: "Fingerprint enrolment must be done at the terminal",
-    how: "Terminal keypad: Menu -> User -> edit person -> Fingerprint, or the device web UI.",
+// List a person's enrolled fingerprints.
+app.get(
+  "/persons/:employeeNo/fingerprints",
+  route(async (req, res) =>
+    res.json(await device.listFingerprints(req.params.employeeNo)),
+  ),
+);
+
+// Enrol a fingerprint. Two modes:
+//   {}                     -> ask the terminal to scan now, then apply
+//   {fingerData:"<b64>"}   -> apply a template captured earlier
+// The scan mode blocks until a finger is presented on the terminal.
+app.post(
+  "/persons/:employeeNo/fingerprint",
+  route(async (req, res) => {
+    const { employeeNo } = req.params;
+    const fingerPrintID = Number(req.body?.fingerPrintID) || 1;
+    if (fingerPrintID < 1 || fingerPrintID > 10) {
+      return res.status(400).json({ error: "fingerPrintID must be 1-10" });
+    }
+
+    let { fingerData } = req.body || {};
+    let quality = null;
+    if (!fingerData) {
+      const captured = await device.captureFingerprint(fingerPrintID);
+      fingerData = captured.fingerData;
+      quality = captured.quality;
+    }
+
+    await device.applyFingerprint({ employeeNo, fingerData, fingerPrintID });
+    res.json({ employeeNo, fingerPrintID, quality, applied: true });
   }),
+);
+
+// Capture a template without assigning it — useful for enrolling the same
+// finger onto several terminals.
+app.post(
+  "/fingerprint/capture",
+  route(async (req, res) =>
+    res.json(await device.captureFingerprint(Number(req.body?.fingerNo) || 1)),
+  ),
+);
+
+// Express 5 has no optional :param? — one route per arity.
+app.delete(
+  "/persons/:employeeNo/fingerprints",
+  route(async (req, res) =>
+    res.json(await device.deleteFingerprint(req.params.employeeNo)),
+  ),
+);
+
+app.delete(
+  "/persons/:employeeNo/fingerprints/:fingerPrintID",
+  route(async (req, res) =>
+    res.json(
+      await device.deleteFingerprint(
+        req.params.employeeNo,
+        req.params.fingerPrintID,
+      ),
+    ),
+  ),
 );
 
 app.put(

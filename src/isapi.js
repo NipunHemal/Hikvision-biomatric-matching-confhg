@@ -72,18 +72,25 @@ class IsapiClient {
 
   // State-changing calls answer with {statusCode, statusString, subStatusCode}.
   // statusCode 1 is success; anything else carries subStatusCode for branching.
-  async call(path, { method = 'GET', body, headers = {}, raw = false } = {}) {
-    const url = `${this.base}${path}${path.includes('?') ? '&' : '?'}format=json`;
+  async call(
+    path,
+    { method = 'GET', body, headers = {}, raw = false, noFormat = false, timeoutMs } = {}
+  ) {
+    // XML endpoints must not carry ?format=json — it makes them reply in JSON.
+    const url = noFormat
+      ? `${this.base}${path}`
+      : `${this.base}${path}${path.includes('?') ? '&' : '?'}format=json`;
+
     const res = await this.auth.fetch(url, {
       method,
       headers: body ? { 'Content-Type': 'application/json', ...headers } : headers,
       body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+      ...(timeoutMs && { signal: AbortSignal.timeout(timeoutMs) }),
     });
 
-    if (raw) {
-      if (!res.ok) throw new DeviceError(`HTTP ${res.status} on ${path}`, { status: res.status });
-      return Buffer.from(await res.arrayBuffer());
-    }
+    // Raw responses are returned even on a non-2xx: the device explains capture
+    // failures in the body, and the caller parses that.
+    if (raw) return Buffer.from(await res.arrayBuffer());
 
     const text = await res.text();
     let data;
@@ -226,6 +233,157 @@ class IsapiClient {
       method: 'POST',
       headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
       body,
+    });
+  }
+
+  // --- Fingerprints ---
+  //
+  // Field shapes below come from Hikvision's own "Hik DeviceGateway" C# sample
+  // and the ISAPI Developer Guide. CaptureFingerPrint is XML-only in practice:
+  // its JSON form is undocumented and firmware support is inconsistent.
+
+  // Asks the terminal's sensor to scan a finger now. Blocks until the person
+  // presents a finger or the device times out, so allow a generous timeout.
+  async captureFingerprint(fingerNo = 1) {
+    const xml =
+      '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<CaptureFingerPrintCond xmlns="http://www.isapi.org/ver20/XMLSchema" version="2.0">' +
+      `<fingerNo>${fingerNo}</fingerNo>` +
+      '</CaptureFingerPrintCond>';
+
+    // The reply is multipart/form-data (an XML part plus a fingerprint image),
+    // so it is read as bytes and the fields are pulled out of the XML part.
+    const buf = await this.call('/ISAPI/AccessControl/CaptureFingerPrint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/xml' },
+      body: xml,
+      raw: true,
+      noFormat: true,
+      timeoutMs: 60_000, // the device waits for a finger; don't cut it short
+    });
+
+    const text = buf.toString('binary');
+    const pick = (tag) => text.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1];
+
+    const fingerData = pick('fingerData');
+    if (!fingerData) {
+      // Documented failures: deviceBusy, captureTimeout, fingerPrintLowQulity
+      // (Hikvision's own spelling of "Quality").
+      const err = pick('subStatusCode') || pick('statusString') || 'no fingerData returned';
+      throw new DeviceError(`Fingerprint capture failed: ${err}`);
+    }
+
+    return {
+      fingerNo: Number(pick('fingerNo') ?? fingerNo),
+      quality: Number(pick('fingerPrintQuality') ?? 0),
+      fingerData,
+    };
+  }
+
+  // Per-module outcomes reported by FingerPrintProgress.
+  static READER_STATUS = {
+    0: 'connecting failed',
+    1: 'connected',
+    2: 'module offline',
+    3: 'fingerprint quality poor, try again',
+    4: 'memory full',
+    5: 'fingerprint already exists',
+    6: 'fingerprint ID already exists',
+    7: 'invalid fingerprint ID',
+    8: 'module already configured',
+    10: 'module version too old to support this employee No.',
+  };
+
+  fingerprintProgress() {
+    return this.call('/ISAPI/AccessControl/FingerPrintProgress');
+  }
+
+  // Applies a captured template to a person. enableCardReader is an array of
+  // reader numbers; fingerPrintID is the finger slot (1-10).
+  //
+  // FingerPrintDownload is ASYNCHRONOUS: a 200 here only means the job was
+  // accepted. The real outcome arrives via FingerPrintProgress, which is polled
+  // until totalStatus is 1 (applied).
+  async applyFingerprint({ employeeNo, fingerData, fingerPrintID = 1, cardReaders = [1] }) {
+    await this.call('/ISAPI/AccessControl/FingerPrintDownload', {
+      method: 'POST',
+      body: {
+        FingerPrintCfg: {
+          employeeNo: String(employeeNo),
+          enableCardReader: cardReaders,
+          fingerPrintID,
+          fingerType: 'normalFP',
+          fingerData,
+        },
+      },
+    });
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const { FingerPrintStatus = {} } = await this.fingerprintProgress();
+
+      if (FingerPrintStatus.totalStatus === 1) {
+        const readers = (FingerPrintStatus.StatusList ?? []).map((s) => ({
+          module: s.id,
+          code: s.cardReaderRecvStatus,
+          detail: IsapiClient.READER_STATUS[s.cardReaderRecvStatus] ?? s.errorMsg ?? 'unknown',
+        }));
+        // 1 = connected/applied. Anything else means this module rejected it,
+        // even though the overall job reports "applied".
+        const failed = readers.filter((r) => r.code !== 1);
+        if (failed.length) {
+          throw new DeviceError(
+            `Fingerprint not applied: ${failed.map((f) => `module ${f.module}: ${f.detail}`).join('; ')}`
+          );
+        }
+        return { applied: true, readers };
+      }
+
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    throw new DeviceError('Timed out waiting for the device to apply the fingerprint');
+  }
+
+  // Lists a person's enrolled fingerprints. This search does NOT use the
+  // numOfMatches/responseStatusStrg cursor the other endpoints use — it pages
+  // until FingerPrintInfo.status is "NoFP".
+  async listFingerprints(employeeNo) {
+    const searchID = `fp-${process.pid}-${this.auth.nc}`;
+    const out = [];
+
+    for (let guard = 0; guard < 20; guard += 1) {
+      const data = await this.call('/ISAPI/AccessControl/FingerPrintUpload', {
+        method: 'POST',
+        body: { FingerPrintCond: { searchID, employeeNo: String(employeeNo) } },
+      });
+
+      const info = data.FingerPrintInfo ?? {};
+      for (const fp of info.FingerPrintList ?? []) {
+        out.push({
+          fingerPrintID: fp.fingerPrintID,
+          fingerType: fp.fingerType,
+          cardReaderNo: fp.cardReaderNo,
+          hasTemplate: Boolean(fp.fingerData),
+        });
+      }
+      if (info.status !== 'OK') break; // "NoFP" = no more pages
+    }
+
+    return out;
+  }
+
+  deleteFingerprint(employeeNo, fingerPrintID) {
+    return this.call('/ISAPI/AccessControl/FingerPrintDelete', {
+      method: 'PUT',
+      body: {
+        FingerPrintDelete: {
+          mode: 'byEmployeeNo',
+          EmployeeNoDetail: {
+            employeeNo: String(employeeNo),
+            ...(fingerPrintID !== undefined && { fingerPrintID: [Number(fingerPrintID)] }),
+          },
+        },
+      },
     });
   }
 

@@ -1,0 +1,452 @@
+{
+  "info": {
+    "name": "Hikvision DS-K1T808MFWX-B Backend",
+    "description": "Local backend for the DS-K1T808MFWX-B access terminal.\n\nSet the collection variables first (baseUrl, employeeNo, webhookUser/webhookPass).\n\nRequests marked [WRITES TO DEVICE] change state on the real terminal. Requests marked [DESTRUCTIVE] remove data. Read the folder descriptions before running either against production hardware.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "employeeNo", "value": "1042", "type": "string" },
+    { "key": "webhookUser", "value": "hemal", "type": "string" },
+    { "key": "webhookPass", "value": "hemal", "type": "string" },
+    { "key": "deviceIp", "value": "10.222.109.123", "type": "string" },
+    { "key": "eventId", "value": "1", "type": "string" },
+    { "key": "doorNo", "value": "1", "type": "string" },
+    { "key": "fingerPrintID", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health & debug",
+      "description": "Liveness and request inspection. /debug/requests needs DEBUG_REQUESTS=true in .env.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "Answers any HTTP method."
+          }
+        },
+        {
+          "name": "Recent raw requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/debug/requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["debug", "requests"]
+            },
+            "description": "Last 20 inbound requests with full headers and bodies, newest first. Needs DEBUG_REQUESTS=true. Logs the Authorization header, so keep it off in production."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhook (simulate the device)",
+      "description": "These imitate what the terminal POSTs, so you can exercise the backend without touching hardware. Basic auth is applied because WEBHOOK_USER is set in .env; clear those vars if you disabled it.",
+      "item": [
+        {
+          "name": "Fingerprint punch (JSON)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
+                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:00:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 113,\n    \"employeeNoString\": \"{{employeeNo}}\",\n    \"name\": \"Supun\",\n    \"currentVerifyMode\": \"fingerprintOrCard\",\n    \"attendanceStatus\": \"checkIn\",\n    \"serialNo\": 1001,\n    \"doorNo\": 1\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "subEventType 113 = fingerprint auth success. The minor code — not currentVerifyMode — determines verify_method."
+          }
+        },
+        {
+          "name": "Card punch (JSON)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
+                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:01:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 38,\n    \"employeeNoString\": \"2077\",\n    \"name\": \"Nimal\",\n    \"cardNo\": \"0012345678\",\n    \"serialNo\": 1002,\n    \"doorNo\": 1\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "subEventType 38 = card auth success."
+          }
+        },
+        {
+          "name": "Face auth FAILED (JSON)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
+                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:02:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 76,\n    \"employeeNoString\": \"3001\",\n    \"name\": \"Kamal\",\n    \"serialNo\": 1003\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "subEventType 76 = face auth fail. Stored with success = 0."
+          }
+        },
+        {
+          "name": "Punch with snapshot (multipart)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
+                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "event_log",
+                  "value": "{\"ipAddress\":\"{{deviceIp}}\",\"eventType\":\"AccessControllerEvent\",\"dateTime\":\"2026-07-19T09:03:00+05:30\",\"AccessControllerEvent\":{\"majorEventType\":5,\"subEventType\":75,\"employeeNoString\":\"{{employeeNo}}\",\"name\":\"Supun\",\"serialNo\":1004}}",
+                  "type": "text"
+                },
+                { "key": "Picture", "type": "file", "src": [], "description": "Attach any JPEG" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "What the device sends when picture upload is enabled: a JSON part named event_log plus a JPEG part. Pick a file for 'Picture' before sending."
+          }
+        },
+        {
+          "name": "Heartbeat (should be ignored)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
+                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ipAddress\": \"{{deviceIp}}\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-19T09:04:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 0,\n    \"serialNo\": 1005\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "Keep-alive with no credential attached. Acked with 200 but not stored — check GET /events to confirm it did not appear."
+          }
+        },
+        {
+          "name": "No credentials (expect 401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"eventType\": \"AccessControllerEvent\"\n}" },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "Confirms Basic auth is enforced while WEBHOOK_USER is set."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "List events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "employeeNo", "value": "{{employeeNo}}", "disabled": true },
+                { "key": "method", "value": "fingerprint", "disabled": true },
+                { "key": "since", "value": "2026-07-19T00:00:00", "disabled": true }
+              ]
+            },
+            "description": "method accepts fingerprint | card | face | button."
+          }
+        },
+        {
+          "name": "Raw payload for one event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}/raw",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "{{eventId}}", "raw"]
+            },
+            "description": "The exact JSON the device sent for that event."
+          }
+        },
+        {
+          "name": "Backfill from device log",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/backfill",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "backfill"],
+              "query": [
+                { "key": "start", "value": "2026-07-01T00:00:00", "disabled": true },
+                { "key": "end", "value": "2026-07-19T23:59:59", "disabled": true }
+              ]
+            },
+            "description": "Reads the terminal's own event log to recover punches missed during downtime. Read-only on the device; writes only to the local DB. Duplicates are ignored, so re-running is safe."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Device",
+      "description": "Read-only queries against the terminal.",
+      "item": [
+        {
+          "name": "Device info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/device/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["device", "info"]
+            },
+            "description": "Model and firmware. Run this first — if it fails, nothing else will work. A 502 with a lock message means the admin account is locked; stop and wait it out rather than retrying."
+          }
+        },
+        {
+          "name": "Device time",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/device/time",
+              "host": ["{{baseUrl}}"],
+              "path": ["device", "time"]
+            },
+            "description": "Clock and NTP settings. Drift over 5 minutes breaks Digest auth."
+          }
+        },
+        {
+          "name": "Notification hosts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/device/hosts",
+              "host": ["{{baseUrl}}"],
+              "path": ["device", "hosts"]
+            },
+            "description": "Where the device is currently configured to POST events. Use this to confirm 'npm run register' worked."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Persons",
+      "description": "[WRITES TO DEVICE] except the list request. These change real records on the terminal.",
+      "item": [
+        {
+          "name": "List persons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/persons", "host": ["{{baseUrl}}"], "path": ["persons"] },
+            "description": "Auto-paginated. Each person carries numOfFP / numOfCard / numOfFace showing what is enrolled."
+          }
+        },
+        {
+          "name": "Create or update person [WRITES TO DEVICE]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"name\": \"Supun\",\n  \"userType\": \"normal\",\n  \"doorNo\": 1,\n  \"beginTime\": \"2026-01-01T00:00:00\",\n  \"endTime\": \"2030-12-31T23:59:59\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/persons", "host": ["{{baseUrl}}"], "path": ["persons"] },
+            "description": "Creates, or updates in place if employeeNo already exists. employeeNo is your join key to your own user table — set it deliberately."
+          }
+        },
+        {
+          "name": "Assign card [WRITES TO DEVICE]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardNo\": \"0012345678\",\n  \"cardType\": \"normalCard\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/card",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "card"]
+            }
+          }
+        },
+        {
+          "name": "Enrol face [WRITES TO DEVICE]",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "face", "type": "file", "src": [], "description": "JPEG, max 200 KB, min 80x80, single frontal face" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/face",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "face"]
+            }
+          }
+        },
+        {
+          "name": "Delete person [DESTRUCTIVE]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}"]
+            },
+            "description": "Removes the person and their credentials from the terminal. There is no undo — verify employeeNo before sending."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fingerprints",
+      "description": "[WRITES TO DEVICE]. Capture puts the terminal into scan mode and waits for a finger, so only run it when someone is standing at the device.\n\nNote: DELETE returned 'notSupport' on firmware V3.2.30 — removal may need to be done at the terminal instead.",
+      "item": [
+        {
+          "name": "List a person's fingerprints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprints",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "fingerprints"]
+            }
+          }
+        },
+        {
+          "name": "Enrol by scanning now [WRITES TO DEVICE]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"fingerPrintID\": {{fingerPrintID}}\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprint",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "fingerprint"]
+            },
+            "description": "Blocks until a finger is presented at the terminal (up to 60s), then applies the template and polls until the device confirms. fingerPrintID is the slot, 1-10, max 10 per person.\n\nEnrol two fingers per person — cuts and dry skin cause lockouts."
+          }
+        },
+        {
+          "name": "Enrol from existing template [WRITES TO DEVICE]",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerPrintID\": {{fingerPrintID}},\n  \"fingerData\": \"PASTE_BASE64_TEMPLATE_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprint",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "fingerprint"]
+            },
+            "description": "Applies a template captured earlier — use this to enrol the same finger onto several terminals without re-scanning."
+          }
+        },
+        {
+          "name": "Capture template only",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"fingerNo\": 1\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/fingerprint/capture",
+              "host": ["{{baseUrl}}"],
+              "path": ["fingerprint", "capture"]
+            },
+            "description": "Scans and returns {fingerNo, quality, fingerData} without assigning it to anyone. Quality is 1-100. The template is biometric data — do not log or store it casually."
+          }
+        },
+        {
+          "name": "Delete one fingerprint [DESTRUCTIVE]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprints/{{fingerPrintID}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "fingerprints", "{{fingerPrintID}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete ALL fingerprints for person [DESTRUCTIVE]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/persons/{{employeeNo}}/fingerprints",
+              "host": ["{{baseUrl}}"],
+              "path": ["persons", "{{employeeNo}}", "fingerprints"]
+            },
+            "description": "Removes every enrolled finger for this person. No undo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doors",
+      "item": [
+        {
+          "name": "Control door [WRITES TO DEVICE]",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"cmd\": \"open\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/doors/{{doorNo}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["doors", "{{doorNo}}"]
+            },
+            "description": "cmd: open | close | alwaysOpen | alwaysClose | resume.\n\nalwaysOpen leaves the door unlocked indefinitely — use 'resume' to return it to normal schedule."
+          }
+        }
+      ]
+    }
+  ]
+}
