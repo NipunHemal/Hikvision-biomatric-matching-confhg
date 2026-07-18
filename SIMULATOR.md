@@ -155,3 +155,8 @@ Set `DATA_DIR` so a test run does not touch `data/events.db`:
 ```bash
 DATA_DIR=/tmp/hik-test npm start
 ```
+
+---
+
+**Generating bulk attendance data?** See [ATTENDANCE.md](ATTENDANCE.md) — a day,
+week or month of realistic punches across the fleet.

@@ -13,7 +13,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "backfill": "node src/backfill.js",
     "simulator": "node simulator/device.js",
-    "fleet": "node simulator/fleet.js"
+    "fleet": "node simulator/fleet.js",
+    "attendance": "node simulator/attendance/run.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

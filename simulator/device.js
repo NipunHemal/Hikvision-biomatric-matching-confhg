@@ -268,6 +268,61 @@ const server = http.createServer((req, res) => {
         return sendJson(200, { event: result.evt, push });
       }
 
+      // Bulk-inject events at arbitrary timestamps. /sim/punch always stamps
+      // "now", which cannot produce a month of history.
+      //
+      //   { "events": [{ employeeNo, method, time, doorNo, minor }], "push": true }
+      //
+      // push:false records to the device log only — the outage case, recoverable
+      // by backfill. push:true also delivers over the webhook, which is how
+      // historical data reaches a backend that backfills from one device only.
+      if (path === '/sim/inject' && req.method === 'POST') {
+        const list = json.events ?? [];
+        const shouldPush = json.push !== false;
+        let pushed = 0;
+        let failed = 0;
+
+        // Deliver in small batches: thousands of sequential requests are slow,
+        // and unbounded parallelism exhausts sockets.
+        const BATCH = 20;
+        const queued = [];
+
+        for (const e of list) {
+          const person = state.persons.get(String(e.employeeNo));
+          const code = e.minor !== undefined ? Number(e.minor) : MINOR[e.method ?? 'fingerprint'];
+          if (code === undefined) {
+            failed += 1;
+            continue;
+          }
+          queued.push(
+            addEvent({
+              major: 5,
+              minor: code,
+              doorNo: e.doorNo ?? 1,
+              serialNo: ++state.serialNo,
+              time: e.time,
+              employeeNoString: String(e.employeeNo),
+              name: e.name ?? person?.name,
+              currentVerifyMode: 'cardOrFaceOrFp',
+              attendanceStatus: e.attendanceStatus,
+            })
+          );
+        }
+
+        if (shouldPush) {
+          for (let i = 0; i < queued.length; i += BATCH) {
+            const results = await Promise.all(queued.slice(i, i + BATCH).map(pushEvent));
+            results.forEach((r) => (r.pushed ? (pushed += 1) : (failed += 1)));
+          }
+        }
+
+        console.log(
+          `[sim] injected ${queued.length} event(s)` +
+            (shouldPush ? `, pushed ${pushed}, failed ${failed}` : ' (device log only)')
+        );
+        return sendJson(200, { injected: queued.length, pushed, failed });
+      }
+
       if (path === '/sim/status') {
         return sendJson(200, {
           online: state.online,

@@ -1393,6 +1393,46 @@
             },
             "description": "Empties the simulated device's log and push counters. Local only to the simulator; your backend DB is untouched."
           }
+        },
+        {
+          "name": "Inject historical punches (bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"push\": true,\n  \"events\": [\n    { \"employeeNo\": \"{{employeeNo}}\", \"method\": \"fingerprint\", \"time\": \"2026-07-01T09:02:11+05:30\", \"attendanceStatus\": \"checkIn\" },\n    { \"employeeNo\": \"{{employeeNo}}\", \"method\": \"fingerprint\", \"time\": \"2026-07-01T17:34:02+05:30\", \"attendanceStatus\": \"checkOut\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{simUrl}}/sim/inject",
+              "host": [
+                "{{simUrl}}"
+              ],
+              "path": [
+                "sim",
+                "inject"
+              ]
+            },
+            "description": "Adds events at ARBITRARY timestamps — /sim/punch always stamps \"now\", which cannot produce history.\n\npush:true also delivers over the webhook (how historical data reaches a backend that backfills from one device only). push:false records to the device log only, recoverable via backfill.\n\nFor bulk generation use the CLI instead:\n  npm run attendance -- --period month --employees 20\nSee SIMULATOR.md."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "console.log(`injected=${d.injected} pushed=${d.pushed} failed=${d.failed}`);"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
