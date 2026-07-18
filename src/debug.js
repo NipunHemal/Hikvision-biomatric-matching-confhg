@@ -69,4 +69,52 @@ function logRequest(req, res, next) {
   next();
 }
 
-module.exports = { captureRaw, logRequest, recent };
+// Human-readable dump of a stored punch. Always printed, unlike logRequest —
+// this is the operational log, not a wiring-up aid.
+function logEvent(id, event, alert) {
+  const line = (label, value) =>
+    value === null || value === undefined || value === ''
+      ? null
+      : `  ${label.padEnd(12)}${value}`;
+
+  const result =
+    event.success === 1 ? 'SUCCESS' : event.success === 0 ? 'FAILED' : 'unknown';
+
+  // An unmapped code is worth shouting about: it means eventCodes.js needs a
+  // new entry before this punch type can be classified.
+  const heading = event.eventName
+    ? `${event.eventName}  (major ${event.majorType} / minor ${event.minorType})`
+    : `UNMAPPED EVENT CODE — major ${event.majorType} / minor ${event.minorType} ` +
+      `(0x${Number(event.minorType).toString(16)}) — add it to src/eventCodes.js`;
+
+  const rows = [
+    line('Event', heading),
+    line('Time', event.eventTime),
+    line('Employee', event.employeeNo),
+    line('Name', event.personName),
+    line('Card', event.cardNo),
+    line('Method', `${event.verifyMethod || '?'}   ->  ${result}`),
+    line('Verify mode', event.verifyMode),
+    line('Attendance', event.attendance),
+    line('Door', event.doorNo),
+    line('Device', event.deviceIp),
+    line('Serial', event.serialNo),
+    line('Picture', event.picturePath),
+  ].filter(Boolean);
+
+  console.log(
+    `\n${'='.repeat(64)}\n` +
+      `  PUNCH #${id}\n` +
+      `${'-'.repeat(64)}\n` +
+      `${rows.join('\n')}\n` +
+      `${'-'.repeat(64)}\n` +
+      `  Raw payload from device:\n` +
+      `${JSON.stringify(alert, null, 2)
+        .split('\n')
+        .map((l) => `  ${l}`)
+        .join('\n')}\n` +
+      `${'='.repeat(64)}\n`
+  );
+}
+
+module.exports = { captureRaw, logRequest, recent, logEvent };

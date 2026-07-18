@@ -5,11 +5,29 @@
 //   2. multipart/form-data -> a JSON part (usually "event_log") + JPEG parts
 // Both wrap the same alert body, so we only normalise that.
 const { describe } = require('./eventCodes');
+const { xmlToObject } = require('./isapi');
 
+// A payload part may be JSON or XML depending on the device's
+// parameterFormatType, which some firmwares ignore. Accept both.
 function parseJsonPart(buf) {
-  const text = Buffer.isBuffer(buf) ? buf.toString('utf8') : String(buf);
-  // Some firmwares pad the JSON part with NUL bytes / trailing whitespace.
-  return JSON.parse(text.replace(/\0+$/, '').trim());
+  const text = (Buffer.isBuffer(buf) ? buf.toString('utf8') : String(buf))
+    .replace(/\0+$/, '') // some firmwares NUL-pad the part
+    .trim();
+
+  if (text.startsWith('<')) {
+    const obj = xmlToObject(text);
+    const alert = obj.EventNotificationAlert ?? obj;
+    // XML carries every value as a string; the codes must be numbers.
+    const ace = alert.AccessControllerEvent;
+    if (ace) {
+      for (const key of ['majorEventType', 'subEventType', 'serialNo', 'doorNo']) {
+        if (ace[key] !== undefined && ace[key] !== '') ace[key] = Number(ace[key]);
+      }
+    }
+    return alert;
+  }
+
+  return JSON.parse(text);
 }
 
 // Pulls the alert object out of whatever the request carried.

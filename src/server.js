@@ -8,7 +8,7 @@ const { insertEvent, listEvents, getEvent } = require("./db");
 const { extractAlert, normalise, isHeartbeat } = require("./parseEvent");
 const { IsapiClient, DeviceError } = require("./isapi");
 const { backfill } = require("./backfill");
-const { captureRaw, logRequest, recent } = require("./debug");
+const { captureRaw, logRequest, recent, logEvent } = require("./debug");
 
 const app = express();
 const device = new IsapiClient();
@@ -92,11 +92,7 @@ app.post(config.webhookPath, basicAuth, upload.any(), logRequest, (req, res) => 
   const id = insertEvent(event);
   if (id === null) return; // duplicate retry from the device
 
-  console.log(
-    `[event] #${id} ${event.eventTime} ${event.eventName || "minor:" + event.minorType} ` +
-      `employee=${event.employeeNo || "-"} name=${event.personName || "-"} ` +
-      `via=${event.verifyMethod || "?"}`,
-  );
+  logEvent(id, event, alert);
 });
 
 // --- Events ----------------------------------------------------------------

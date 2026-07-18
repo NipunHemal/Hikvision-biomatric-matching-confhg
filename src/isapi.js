@@ -5,6 +5,32 @@ const config = require('./config');
 
 const md5 = (s) => crypto.createHash('md5').update(s).digest('hex');
 
+// Minimal XML -> object conversion. Some firmwares ignore ?format=json and
+// answer in XML regardless, so responses are normalised rather than rejected.
+// Repeated sibling tags collapse into an array; leaves become strings.
+function xmlToObject(xml) {
+  const parseChildren = (body) => {
+    const out = {};
+    const tag = /<([\w:.-]+)(?:\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/\1>)/g;
+    let m;
+    let found = false;
+
+    while ((m = tag.exec(body)) !== null) {
+      found = true;
+      const [, name, inner = ''] = m;
+      const value = inner.includes('<') ? parseChildren(inner) : inner.trim();
+      if (name in out) {
+        out[name] = Array.isArray(out[name]) ? [...out[name], value] : [out[name], value];
+      } else {
+        out[name] = value;
+      }
+    }
+    return found ? out : body.trim();
+  };
+
+  return parseChildren(xml.replace(/<\?xml[\s\S]*?\?>/, ''));
+}
+
 class DeviceError extends Error {
   constructor(message, { status, statusCode, subStatusCode, errorMsg } = {}) {
     super(message);
@@ -94,12 +120,21 @@ class IsapiClient {
 
     const text = await res.text();
     let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new DeviceError(`Non-JSON reply from ${path}: ${text.slice(0, 200)}`, {
-        status: res.status,
-      });
+    if (text.trimStart().startsWith('<')) {
+      data = xmlToObject(text);
+      // ResponseStatus is the XML equivalent of the JSON status envelope.
+      if (data.ResponseStatus) {
+        data = { ...data.ResponseStatus, ...data };
+        data.statusCode = Number(data.statusCode);
+      }
+    } else {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new DeviceError(`Unparseable reply from ${path}: ${text.slice(0, 200)}`, {
+          status: res.status,
+        });
+      }
     }
 
     if (data.statusCode !== undefined && data.statusCode !== 1) {
@@ -411,31 +446,67 @@ class IsapiClient {
   }
 
   // --- Event subscription ---
+  // Sent as XML: this endpoint rejects a JSON body with "badXmlFormat" on
+  // V3.25.x firmware, regardless of ?format=json.
+  //
+  // httpAuthenticationMethod must stay "basic" — the webhook verifies
+  // Authorization: Basic, so MD5digest would make every event silently 401.
   registerHttpHost({ id = 1, host, port, path, user, pass }) {
+    const xml =
+      '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<HttpHostNotification version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">' +
+      `<id>${id}</id>` +
+      `<url>${path}</url>` +
+      '<protocolType>HTTP</protocolType>' +
+      '<parameterFormatType>JSON</parameterFormatType>' +
+      '<addressingFormatType>ipaddress</addressingFormatType>' +
+      `<ipAddress>${host}</ipAddress>` +
+      `<portNo>${port}</portNo>` +
+      `<httpAuthenticationMethod>${user ? 'basic' : 'none'}</httpAuthenticationMethod>` +
+      (user ? `<userName>${user}</userName><password>${pass}</password>` : '') +
+      '</HttpHostNotification>';
+
     return this.call(`/ISAPI/Event/notification/httpHosts/${id}`, {
       method: 'PUT',
-      body: {
-        HttpHostNotification: {
-          id: String(id),
-          url: path,
-          protocolType: 'HTTP',
-          parameterFormatType: 'JSON',
-          addressingFormatType: 'ipaddress',
-          ipAddress: host,
-          portNo: port,
-          // Must stay "basic": the webhook verifies Authorization: Basic.
-          // Setting MD5digest here makes the device sign requests this server
-          // cannot validate, and every event silently 401s.
-          httpAuthenticationMethod: user ? 'basic' : 'none',
-          ...(user && { userName: user, password: pass }),
-        },
-      },
+      headers: { 'Content-Type': 'application/xml' },
+      body: xml,
+      noFormat: true,
     });
   }
 
-  httpHosts() {
-    return this.call('/ISAPI/Event/notification/httpHosts');
+  // This endpoint ignores ?format=json on some firmwares and answers in XML,
+  // so it is read raw and the fields are pulled out either way.
+  async httpHosts() {
+    const buf = await this.call('/ISAPI/Event/notification/httpHosts', {
+      raw: true,
+      noFormat: true,
+    });
+    const text = buf.toString('utf8');
+
+    if (text.trimStart().startsWith('{')) {
+      const data = JSON.parse(text);
+      const list = data.HttpHostNotificationList?.HttpHostNotification ?? [];
+      return Array.isArray(list) ? list : [list];
+    }
+
+    // Split on each <HttpHostNotification> block, then read its child tags.
+    return [...text.matchAll(/<HttpHostNotification>([\s\S]*?)<\/HttpHostNotification>/g)].map(
+      ([, block]) => {
+        const pick = (tag) => block.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1] ?? null;
+        return {
+          id: pick('id'),
+          url: pick('url'),
+          protocolType: pick('protocolType'),
+          parameterFormatType: pick('parameterFormatType'),
+          addressingFormatType: pick('addressingFormatType'),
+          ipAddress: pick('ipAddress'),
+          portNo: pick('portNo'),
+          httpAuthenticationMethod: pick('httpAuthenticationMethod'),
+          userName: pick('userName'),
+        };
+      }
+    );
   }
 }
 
-module.exports = { IsapiClient, DigestAuth, DeviceError };
+module.exports = { IsapiClient, DigestAuth, DeviceError, xmlToObject };
