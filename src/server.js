@@ -9,6 +9,7 @@ const { extractAlert, normalise, isHeartbeat } = require("./parseEvent");
 const { IsapiClient, DeviceError } = require("./isapi");
 const { backfill } = require("./backfill");
 const { captureRaw, logRequest, recent, logEvent } = require("./debug");
+const { markSeen, report, startMonitor } = require("./health");
 
 const app = express();
 const device = new IsapiClient();
@@ -71,6 +72,10 @@ app.post(config.webhookPath, basicAuth, upload.any(), logRequest, (req, res) => 
   // Always ack fast — the terminal retries and queues locally on a non-2xx.
   res.status(200).json({ ok: true });
 
+  // Recorded before the heartbeat filter: keep-alives carry no credential but
+  // are exactly what proves the device can still reach us.
+  markSeen(req.ip);
+
   let alert;
   try {
     alert = extractAlert(req);
@@ -123,6 +128,16 @@ app.post(
 app.use("/pictures", express.static(picturesDir));
 
 // --- Device management -----------------------------------------------------
+
+// Is the device online, and can it still reach us? Never 502s — an unreachable
+// device is a valid answer here, not a request failure.
+app.get(
+  "/device/health",
+  route(async (req, res) => {
+    const status = await report(device);
+    res.status(status.healthy ? 200 : 503).json(status);
+  }),
+);
 
 app.get(
   "/device/info",
@@ -278,9 +293,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
+startMonitor();
+
 app.listen(config.port, () => {
   const root = `http://${config.listenerHost}:${config.port}`;
   console.log(`Webhook listening on ${root}${config.webhookPath}`);
+  console.log(`Health       ${root}/device/health`);
   console.log(`Events API   ${root}/events`);
   console.log(`Device API   ${root}/device/info  ${root}/persons`);
 });

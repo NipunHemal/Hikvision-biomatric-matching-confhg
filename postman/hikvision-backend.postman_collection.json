@@ -155,14 +155,34 @@
           }
         },
         {
-          "name": "No credentials (expect 401)",
+          "name": "Punch as XML (device may send this)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{webhookUser}}", "type": "string" },
+                { "key": "password", "value": "{{webhookPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/xml" }],
+            "body": {
+              "mode": "raw",
+              "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<EventNotificationAlert version=\"2.0\" xmlns=\"http://www.isapi.org/ver20/XMLSchema\">\n  <ipAddress>{{deviceIp}}</ipAddress>\n  <eventType>AccessControllerEvent</eventType>\n  <dateTime>2026-07-19T09:05:00+05:30</dateTime>\n  <AccessControllerEvent>\n    <majorEventType>5</majorEventType>\n    <subEventType>38</subEventType>\n    <employeeNoString>2077</employeeNoString>\n    <name>Nimal</name>\n    <cardNo>0012345678</cardNo>\n    <serialNo>1006</serialNo>\n  </AccessControllerEvent>\n</EventNotificationAlert>"
+            },
+            "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
+            "description": "Firmware V3.25.x reports parameterFormatType as blank and may push XML rather than JSON. The webhook accepts both — this request proves the XML path works."
+          }
+        },
+        {
+          "name": "No credentials (401 only if auth is on)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"eventType\": \"AccessControllerEvent\"\n}" },
             "url": { "raw": "{{baseUrl}}/hik/event", "host": ["{{baseUrl}}"], "path": ["hik", "event"] },
-            "description": "Confirms Basic auth is enforced while WEBHOOK_USER is set."
+            "description": "Expect 401 when WEBHOOK_USER is set in .env, and 200 when it is blank.\n\nIt is currently BLANK — webhook auth is disabled to match the device, which was set to httpAuthenticationMethod=none via the web UI. So this returns 200 today. Run 'npm run register' to turn auth back on at both ends."
           }
         }
       ]
@@ -225,6 +245,19 @@
       "name": "Device",
       "description": "Read-only queries against the terminal.",
       "item": [
+        {
+          "name": "Device health (online / offline)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/device/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["device", "health"]
+            },
+            "description": "Returns 200 when healthy, 503 when not — usable directly as a monitoring probe.\n\nChecks both directions:\n- device.reachable — can this server reach the terminal (ISAPI probe + latency)\n- webhook.receiving — has the terminal POSTed recently (it sends a keep-alive about every 30s; stale after 90s)\n\nBoth must be true for healthy. reachable=true with receiving=false means the terminal is up but cannot deliver events — check the inbound firewall rule, LISTENER_HOST, and that the auth setting matches on both sides."
+          }
+        },
         {
           "name": "Device info",
           "request": {
