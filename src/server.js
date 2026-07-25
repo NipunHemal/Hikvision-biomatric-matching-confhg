@@ -375,10 +375,45 @@ startMonitor();
 setRecoveryHandler(syncLoop.sync);
 syncLoop.start();
 
+// Real (non-loopback) IPv4 addresses of this machine, so the banner shows where
+// the device should actually post — and can flag a stale LISTENER_HOST.
+function localIPv4s() {
+  const os = require("os");
+  const out = [];
+  for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const a of addrs || []) {
+      if (a.family === "IPv4" && !a.internal) out.push({ name, address: a.address });
+    }
+  }
+  return out;
+}
+
 app.listen(config.port, () => {
   const root = `http://${config.listenerHost}:${config.port}`;
   console.log(`Webhook listening on ${root}${config.webhookPath}`);
   console.log(`Health       ${root}/device/health`);
   console.log(`Events API   ${root}/events`);
   console.log(`Device API   ${root}/device/info  ${root}/persons`);
+
+  const ips = localIPv4s();
+  console.log(
+    `\nThis machine's LAN IP:` +
+      (ips.length
+        ? "\n" + ips.map((i) => `  ${i.address}  (${i.name})`).join("\n")
+        : "  none detected"),
+  );
+
+  // The device dials out to LISTENER_HOST. If that address isn't one this
+  // machine actually has, its posts land nowhere — the usual cause is the PC
+  // having moved networks since .env was written.
+  const configured = config.listenerHost;
+  const known = ips.map((i) => i.address);
+  if (configured !== "127.0.0.1" && !known.includes(configured)) {
+    console.warn(
+      `\n  ⚠  LISTENER_HOST in .env is ${configured}, which is NOT one of this ` +
+        `machine's addresses.\n     The device cannot reach you at that IP. ` +
+        `Set LISTENER_HOST=${known[0] ?? "<this machine's LAN IP>"} and re-run ` +
+        `'npm run register'.`,
+    );
+  }
 });
