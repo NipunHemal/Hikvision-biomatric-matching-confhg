@@ -91,9 +91,35 @@ public final class DeviceManager {
         ConnectedDevice d = devices.get(deviceId);
         if (d != null) {
             d.online = false;
-            d.transport.setLoginId(-1);
+            if (d.transport != null) d.transport.setLoginId(-1);
             System.out.println("[hub] device offline: " + deviceId);
         }
+    }
+
+    // --- simulation (no ISUP, no hardware) ---
+
+    /** Add or replace an in-memory simulated device. Comes online immediately. */
+    public ConnectedDevice addSimulated(String deviceId, String model) {
+        SimulatedDeviceAdapter a = new SimulatedDeviceAdapter(model);
+        ConnectedDevice dev = new ConnectedDevice(deviceId, a.model(), null, a, true);
+        devices.put(deviceId, dev);
+        System.out.println("[hub] SIMULATED device added: " + deviceId + " (" + a.model() + ")");
+        return dev;
+    }
+
+    /** Toggle a simulated device on/off (mimics power/network). */
+    public boolean setSimOnline(String deviceId, boolean on) {
+        ConnectedDevice d = devices.get(deviceId);
+        if (d == null || !d.simulated) return false;
+        d.online = on;
+        d.lastSeen = System.currentTimeMillis();
+        System.out.println("[hub] SIMULATED device " + deviceId + " -> " + (on ? "online" : "offline"));
+        return true;
+    }
+
+    /** Remove any device from the registry (used for simulated teardown). */
+    public boolean remove(String deviceId) {
+        return devices.remove(deviceId) != null;
     }
 
     public ConnectedDevice get(String deviceId) {

@@ -20,7 +20,9 @@ services:
       # ── set these ──
       ISUP_KEY: "Hrm12345Key"
       # HRM API Bearer token(s), comma-separated. REQUIRED in production.
-      API_TOKENS: "hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW"            # must match each device's Encryption Key
+      API_TOKENS: "hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW"
+      # Enable in-memory simulated devices (test the API without hardware). Keep false in prod.
+      SIM_ENABLED: "false"
       # The address DEVICES dial — the server's PUBLIC IP or domain (not internal).
       ALARM_SERVER_IP: "161.97.135.43"
       DAS_SERVER_IP: "161.97.135.43"

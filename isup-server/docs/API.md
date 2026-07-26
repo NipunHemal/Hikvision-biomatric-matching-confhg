@@ -129,6 +129,21 @@ Optional `"targetDeviceIds": ["HRM03","HRM04"]` to restrict targets.
 
 ---
 
+## Simulation (test without hardware)
+
+When `SIM_ENABLED=true`, in-memory simulated devices can be created and driven
+through every endpoint above — no terminal required. See
+[`docs/SIMULATOR.md`](SIMULATOR.md).
+
+- `POST /sim/devices` `{deviceId, model?}` — add (comes online)
+- `POST /sim/devices/{id}/offline` · `/online` — toggle
+- `DELETE /sim/devices/{id}` — remove
+
+All `/sim/*` routes require the Bearer token and return `403` when `SIM_ENABLED`
+is off.
+
+---
+
 ## Typical HRM flows
 
 **Enroll an employee across all branches**

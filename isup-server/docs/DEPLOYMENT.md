@@ -80,6 +80,8 @@ edits needed. Set these:
 | `ALARM_SERVER_TCP_PORT` | `7663` | default |
 | `ALARM_SERVER_UDP_PORT` | `7662` | default |
 | `HTTP_API_PORT` | `8090` | default |
+| `API_TOKENS` | `hub_xxx,hub_yyy` | HRM Bearer token(s), comma-separated. Empty = auth OFF (dev only) |
+| `SIM_ENABLED` | `false` | Enable in-memory simulated devices for testing. Keep `false` in prod |
 | `HRM_EVENT_URL` | `https://hrm.example.com/api/events` | Forward punch events (optional) |
 
 `ALARM_SERVER_IP` and `DAS_SERVER_IP` **must be the server's public IP/domain** —

@@ -99,6 +99,34 @@ public final class ApiServer {
                 return;
             }
 
+            // --- simulation control (no ISUP, no hardware) ---
+            //   Only when SIM_ENABLED=true. Lets you add in-memory devices to test
+            //   the whole API/Postman/HRM flow without a real terminal.
+            if (s.length >= 1 && s[0].equals("sim")) {
+                if (!simEnabled()) { json(ex, 403, err("simulation disabled — set SIM_ENABLED=true")); return; }
+                // POST /sim/devices {deviceId, model?}
+                if (m.equals("POST") && eq(s, "sim", "devices")) {
+                    JsonObject b = body(ex);
+                    String id = b.get("deviceId").getAsString();
+                    String model = b.has("model") ? b.get("model").getAsString() : null;
+                    ConnectedDevice dev = manager.addSimulated(id, model);
+                    json(ex, 200, gson.toJson(brief(dev))); return;
+                }
+                // POST /sim/devices/{id}/online | /offline
+                if (m.equals("POST") && s.length == 4 && s[1].equals("devices")
+                        && (s[3].equals("online") || s[3].equals("offline"))) {
+                    boolean ok = manager.setSimOnline(s[2], s[3].equals("online"));
+                    if (!ok) { json(ex, 404, err("no simulated device: " + s[2])); return; }
+                    json(ex, 200, "{\"deviceId\":\"" + s[2] + "\",\"online\":" + s[3].equals("online") + "}"); return;
+                }
+                // DELETE /sim/devices/{id}
+                if (m.equals("DELETE") && s.length == 3 && s[1].equals("devices")) {
+                    boolean ok = manager.remove(s[2]);
+                    json(ex, ok ? 200 : 404, ok ? "{\"removed\":\"" + s[2] + "\"}" : err("not found: " + s[2])); return;
+                }
+                json(ex, 404, err("unknown sim route")); return;
+            }
+
             // --- cross-branch fingerprint sync ---
             //   POST /fingerprints/sync {sourceDeviceId, employeeNo, targetDeviceIds?}
             if (m.equals("POST") && eq(s, "fingerprints", "sync")) {
@@ -263,7 +291,12 @@ public final class ApiServer {
 
     private Map<String, Object> brief(ConnectedDevice d) {
         return Map.of("deviceId", d.deviceId, "model", d.model, "online", d.online,
-                "adapter", d.adapter.getClass().getSimpleName());
+                "adapter", d.adapter.getClass().getSimpleName(), "simulated", d.simulated);
+    }
+
+    private boolean simEnabled() {
+        String v = Config.get("SIM_ENABLED");
+        return v.equalsIgnoreCase("true") || v.equals("1") || v.equalsIgnoreCase("yes");
     }
 
     // --- http helpers ---
