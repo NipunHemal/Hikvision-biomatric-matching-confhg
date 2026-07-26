@@ -10,10 +10,12 @@
 # ---------------------------------------------------------------------------
 
 # ---- build stage: compile the Java sources ----
+# Uses lib-linux/ (git-tracked, Linux .so + jars) — NOT the local dev lib/
+# which holds Windows .dll and is gitignored (invisible to Dokploy's git build).
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /build
 COPY src ./src
-COPY lib ./lib
+COPY lib-linux ./lib
 RUN find src/main/java -name '*.java' > sources.txt \
  && javac -encoding UTF-8 -cp "lib/*" -d out @sources.txt
 
@@ -21,8 +23,8 @@ RUN find src/main/java -name '*.java' > sources.txt \
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Native SDK libraries + jars (Linux .so — see note above)
-COPY lib ./lib
+# Native SDK libraries + jars (Linux .so from lib-linux/)
+COPY lib-linux ./lib
 # Compiled classes
 COPY --from=build /build/out ./out
 # Default config (override at runtime with a mounted /app/config.properties)

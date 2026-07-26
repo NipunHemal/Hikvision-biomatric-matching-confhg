@@ -1,7 +1,103 @@
-# Deployment (Docker)
+# Deployment
 
-Deploy the hub to a server as a Docker container. Branch terminals dial in over
-ISUP; the HRM calls the HTTP API.
+Deploy the hub to a server. Branch terminals dial in over ISUP; the HRM calls
+the HTTP API. Works with Docker directly or a git-based PaaS like **Dokploy**.
+
+---
+
+## Deploying with Dokploy (git-based UI)
+
+Dokploy builds from your **git repository**, not your local disk. Two things
+follow from that:
+
+### 1. The native libs must be committed (git-tracked)
+
+Local dev uses `lib/` (Windows `.dll`) which is **gitignored** — Dokploy never
+sees it. For deployment the libs live in **`lib-linux/`** (git-tracked), and the
+Dockerfile copies from there.
+
+`lib-linux/` must contain the **Linux `.so`** ISUP SDK before you push:
+
+```
+lib-linux/
+├── libHCISUPCMS.so  libHCISUPAlarm.so  libHCISUPSS.so  libHCISUPStream.so
+├── libcrypto.so     libssl.so          (+ HCAapSDKCom components)
+└── jna.jar  examples.jar  gson-2.8.9.jar   (already committed — cross-platform)
+```
+
+Get the Linux `.so` from the same Hikvision ISUP SDK package (Linux build), drop
+them in `lib-linux/`, then commit and push:
+
+```bash
+git add isup-server/lib-linux
+git commit -m "add Linux ISUP SDK libs for deploy"
+git push
+```
+
+> Without the `.so` files the build's `COPY lib-linux ./lib` still succeeds but
+> the container crashes at startup loading the native SDK. They are required.
+
+### 2. Dokploy app settings
+
+In the Dokploy UI, create an **Application** from your git repo and set:
+
+| Setting | Value |
+| --- | --- |
+| Build Type | **Dockerfile** |
+| Base Directory / Build Path | **`isup-server`** (the app is in a subfolder) |
+| Dockerfile Path | `Dockerfile` (relative to base directory) |
+| Branch | your branch |
+
+### 3. Ports — ISUP needs raw TCP/UDP, not just a domain
+
+Dokploy's domain routing (Traefik) is for **HTTP** only. The ISUP + alarm ports
+are raw TCP/UDP that **devices** connect to, so add them as **Port mappings** in
+the Dokploy UI (Advanced → Ports), not as domains:
+
+| Container port | Proto | For |
+| --- | --- | --- |
+| 7660 | TCP | ISUP registration (devices) |
+| 7663 | TCP | alarm events (devices) |
+| 7662 | UDP | alarm events (devices) |
+| 8090 | TCP | HTTP API (HRM) — may instead be a Dokploy domain |
+
+The HTTP API (8090) can be exposed via a Dokploy **domain** (Traefik + TLS) if
+the HRM calls it over HTTPS; keep it private or behind auth (it has none built in).
+
+### 4. Config — set the reachable IP
+
+`config.properties` is baked into the image, but the important values must be the
+server's **public/reachable IP** (what devices dial):
+
+```properties
+AlarmServerIP=<server public IP or domain>
+DasServerIP=<server public IP or domain>
+DasServerPort=7660
+ISUPKey=<your key>
+```
+
+Either edit `config.properties` before pushing, or set them as Dokploy
+**environment variables** and read them (extend `Config` to prefer env vars) —
+simplest for now is to commit the correct `config.properties`.
+
+### 5. Deploy
+
+Push to git → Dokploy builds and runs it. Check the app logs in the UI for:
+
+```
+[isup] CMS listening on 0.0.0.0:7660
+[isup] alarm listening on <AlarmServerIP>:7663
+[api] HTTP API on http://0.0.0.0:8090
+```
+
+Then point a device at the server (see [DEVICE-SETUP.md](DEVICE-SETUP.md)) and
+open the app's HTTP API — `GET /devices` should list it.
+
+---
+
+## Deploying with Docker directly
+
+Branch terminals dial in over ISUP; the HRM calls the HTTP API.
 
 ## ⚠️ The one hard requirement: Linux ISUP libraries
 

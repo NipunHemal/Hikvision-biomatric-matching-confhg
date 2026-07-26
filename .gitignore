@@ -4,6 +4,8 @@ data/
 vendor/isup-sdk/
 isup-server/lib/
 isup-server/out/
-isup-server/lib/
 isup-server/EHomeSDKLog/
 boot*.txt
+vendor/
+isup-server/boot*.txt
+isup-server/.idea/
