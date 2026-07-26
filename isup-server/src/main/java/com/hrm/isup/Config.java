@@ -31,13 +31,18 @@ public final class Config {
     }
 
     public static String get(String key) {
+        // Exact env var name first (e.g. ISUPKey).
         String env = System.getenv(key);
         if (env != null && !env.isBlank()) return env.trim();
 
-        String snake = toUpperSnake(key);
-        env = System.getenv(snake);
-        if (env != null && !env.isBlank()) return env.trim();
-
+        // Robust match: ignore case and underscores, so ISUP_KEY / ISUPKEY /
+        // ISUPKey and ALARM_SERVER_IP / AlarmServerIP all resolve to the key.
+        String norm = normalize(key);
+        for (var e : System.getenv().entrySet()) {
+            if (normalize(e.getKey()).equals(norm) && e.getValue() != null && !e.getValue().isBlank()) {
+                return e.getValue().trim();
+            }
+        }
         return P.getProperty(key, "").trim();
     }
 
@@ -46,9 +51,8 @@ public final class Config {
         return v.isEmpty() ? def : Integer.parseInt(v);
     }
 
-    /** ISUPKey -> ISUP_KEY, AlarmServerIP -> ALARM_SERVER_IP */
-    private static String toUpperSnake(String key) {
-        return key.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toUpperCase();
+    private static String normalize(String s) {
+        return s.replace("_", "").toUpperCase();
     }
 
     private Config() {}
