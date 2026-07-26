@@ -66,15 +66,23 @@ public final class DeviceManager {
         scheduler.schedule(() -> {
             try {
                 if (!dev.online) return;
-                String model = detectModel(dev.transport);
-                if (model != null && !model.equals("unknown")) {
-                    dev.model = model;
-                    dev.adapter = AdapterFactory.forModel(model, dev.transport);
-                    System.out.println("[hub] " + dev.deviceId + " model=" + model
-                            + " adapter=" + dev.adapter.getClass().getSimpleName());
+                // Diagnostic: show the raw passthrough result for deviceInfo.
+                var r = dev.transport.get("/ISAPI/System/deviceInfo?format=json");
+                System.out.println("[hub] detect " + dev.deviceId + " ok=" + r.ok
+                        + " reply=" + (r.body == null ? "" : r.body.substring(0, Math.min(120, r.body.length()))));
+                if (r.ok) {
+                    var m = java.util.regex.Pattern
+                            .compile("\"model\"\\s*:\\s*\"([^\"]+)\"").matcher(r.body);
+                    if (m.find()) {
+                        String model = m.group(1);
+                        dev.model = model;
+                        dev.adapter = AdapterFactory.forModel(model, dev.transport);
+                        System.out.println("[hub] " + dev.deviceId + " model=" + model
+                                + " adapter=" + dev.adapter.getClass().getSimpleName());
+                    }
                 }
-            } catch (Exception ignored) {
-                // stays on the generic adapter, which works for standard ISAPI
+            } catch (Exception e) {
+                System.out.println("[hub] detect " + dev.deviceId + " error: " + e.getMessage());
             }
         }, 3, TimeUnit.SECONDS);
     }
@@ -97,17 +105,4 @@ public final class DeviceManager {
         return devices.values();
     }
 
-    private String detectModel(IsupTransport tx) {
-        try {
-            var r = tx.get("/ISAPI/System/deviceInfo?format=json");
-            if (r.ok) {
-                var m = java.util.regex.Pattern
-                        .compile("\"model\"\\s*:\\s*\"([^\"]+)\"").matcher(r.body);
-                if (m.find()) return m.group(1);
-            }
-        } catch (Exception ignored) {
-            // registration-time query can fail; adapter fallback handles it
-        }
-        return "unknown";
-    }
 }

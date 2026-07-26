@@ -130,6 +130,7 @@ public final class IsupServer {
                     int n = srv.size();
                     pInBuffer.write(0, srv.getPointer().getByteArray(0, n), 0, n);
 
+                    System.out.println("[isup] ENUM_DEV_ON device=" + deviceId + " lUserID=" + lUserID);
                     manager.online(deviceId, lUserID);
                     return true;
                 }
@@ -147,8 +148,10 @@ public final class IsupServer {
                     System.arraycopy(reg.struRegInfo.bySessionKey, 0, sk.sSessionKey, 0,
                             reg.struRegInfo.bySessionKey.length);
                     sk.write();
-                    cms.NET_ECMS_SetDeviceSessionKey(sk.getPointer());
+                    boolean ok = cms.NET_ECMS_SetDeviceSessionKey(sk.getPointer());
                     alarm.NET_EALARM_SetDeviceSessionKey(sk.getPointer());
+                    System.out.println("[isup] ENUM_DEV_SESSIONKEY device="
+                            + trim(reg.struRegInfo.byDeviceID) + " setKey=" + ok);
                     return true;
                 }
                 case HCISUPCMS.EHOME_REGISTER_TYPE.ENUM_DEV_DAS_REQ: {
