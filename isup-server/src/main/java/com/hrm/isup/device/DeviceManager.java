@@ -6,6 +6,9 @@ import com.hrm.isup.transport.IsupTransport;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The hub's live registry of connected devices, keyed by ISUP Device ID.
@@ -18,6 +21,11 @@ public final class DeviceManager {
 
     private volatile HCISUPCMS cms;   // null until the native ISUP SDK loads
     private final Map<String, ConnectedDevice> devices = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "model-detect");
+        t.setDaemon(true);
+        return t;
+    });
 
     public DeviceManager() {}
 
@@ -36,19 +44,39 @@ public final class DeviceManager {
             existing.online = true;
             existing.lastSeen = System.currentTimeMillis();
             System.out.println("[hub] device reconnected: " + deviceId);
+            scheduleModelDetect(existing);
             return existing;
         }
 
+        // Model detection needs an ISAPI passthrough, which is NOT ready inside
+        // the registration callback (the CMS user session is still forming — a
+        // passthrough here fails with error 47). Start with the generic adapter
+        // and detect the model a few seconds later once the session is valid.
         IsupTransport tx = new IsupTransport(cms, loginId);
-        // Detect the model from the device, then pick its adapter. Fall back to
-        // the model name in the ID if the query fails during registration.
-        String model = detectModel(tx);
-        DeviceAdapter adapter = AdapterFactory.forModel(model, tx);
-        ConnectedDevice dev = new ConnectedDevice(deviceId, model, tx, adapter);
+        ConnectedDevice dev = new ConnectedDevice(deviceId, "detecting",
+                tx, new GenericIsapiAdapter(tx, "detecting"));
         devices.put(deviceId, dev);
-        System.out.println("[hub] device online: " + deviceId + " model=" + model
-                + " adapter=" + adapter.getClass().getSimpleName());
+        System.out.println("[hub] device online: " + deviceId + " (detecting model...)");
+        scheduleModelDetect(dev);
         return dev;
+    }
+
+    /** Detect the model once the session is ready, then swap in its adapter. */
+    private void scheduleModelDetect(ConnectedDevice dev) {
+        scheduler.schedule(() -> {
+            try {
+                if (!dev.online) return;
+                String model = detectModel(dev.transport);
+                if (model != null && !model.equals("unknown")) {
+                    dev.model = model;
+                    dev.adapter = AdapterFactory.forModel(model, dev.transport);
+                    System.out.println("[hub] " + dev.deviceId + " model=" + model
+                            + " adapter=" + dev.adapter.getClass().getSimpleName());
+                }
+            } catch (Exception ignored) {
+                // stays on the generic adapter, which works for standard ISAPI
+            }
+        }, 3, TimeUnit.SECONDS);
     }
 
     public void offline(String deviceId) {
