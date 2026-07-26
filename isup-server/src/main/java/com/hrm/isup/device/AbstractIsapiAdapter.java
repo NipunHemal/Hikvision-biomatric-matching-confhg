@@ -55,6 +55,7 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         user.add("Valid", valid);
         user.addProperty("doorRight", "1");
         user.add("RightPlan", rightPlan);
+        if (p.pin != null && !p.pin.isEmpty()) user.addProperty("password", p.pin);
 
         JsonObject body = new JsonObject();
         body.add("UserInfo", user);
@@ -113,6 +114,16 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         return out;
     }
 
+    // --- PIN / password ---
+    @Override public Result setPin(String employeeNo, String pin) {
+        JsonObject user = new JsonObject();
+        user.addProperty("employeeNo", employeeNo);
+        user.addProperty("password", pin);
+        JsonObject body = new JsonObject();
+        body.add("UserInfo", user);
+        return tx.put("/ISAPI/AccessControl/UserInfo/Modify?format=json", gson.toJson(body));
+    }
+
     // --- cards ---
     @Override public Result assignCard(String employeeNo, String cardNo, String cardType) {
         JsonObject card = new JsonObject();
@@ -124,7 +135,43 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         return tx.post("/ISAPI/AccessControl/CardInfo/Record?format=json", gson.toJson(body));
     }
 
+    @Override public Result listCards(String employeeNo) {
+        JsonObject emp = new JsonObject();
+        emp.addProperty("employeeNo", employeeNo);
+        JsonArray list = new JsonArray();
+        list.add(emp);
+        JsonObject cond = new JsonObject();
+        cond.addProperty("searchID", "cards-" + System.nanoTime());
+        cond.addProperty("searchResultPosition", 0);
+        cond.addProperty("maxResults", 30);
+        cond.add("EmployeeNoList", list);
+        JsonObject body = new JsonObject();
+        body.add("CardInfoSearchCond", cond);
+        return tx.post("/ISAPI/AccessControl/CardInfo/Search?format=json", gson.toJson(body));
+    }
+
+    @Override public Result deleteCard(String employeeNo, String cardNo) {
+        JsonObject card = new JsonObject();
+        card.addProperty("cardNo", cardNo);
+        JsonArray list = new JsonArray();
+        list.add(card);
+        JsonObject cond = new JsonObject();
+        cond.add("CardNoList", list);
+        JsonObject body = new JsonObject();
+        body.add("CardInfoDelCond", cond);
+        return tx.put("/ISAPI/AccessControl/CardInfo/Delete?format=json", gson.toJson(body));
+    }
+
     // --- fingerprints ---
+    @Override public Result captureFingerprint(int fingerNo) {
+        // XML-only; the device scans and returns the template. Note: this blocks
+        // until a finger is presented, so it can exceed the passthrough timeout.
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<CaptureFingerPrintCond version=\"2.0\" xmlns=\"http://www.isapi.org/ver20/XMLSchema\">"
+                + "<fingerNo>" + fingerNo + "</fingerNo></CaptureFingerPrintCond>";
+        return tx.post("/ISAPI/AccessControl/CaptureFingerPrint", xml);
+    }
+
     @Override public Result downloadFingerprint(Fingerprint fp) {
         JsonArray readers = new JsonArray();
         readers.add(fp.cardReaderNo);

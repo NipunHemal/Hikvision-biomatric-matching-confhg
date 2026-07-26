@@ -27,11 +27,17 @@ public interface DeviceAdapter {
     Result deletePerson(String employeeNo);
     List<Person> listPersons();
 
+    // --- PIN ---
+    Result setPin(String employeeNo, String pin);
+
     // --- cards ---
     Result assignCard(String employeeNo, String cardNo, String cardType);
+    Result listCards(String employeeNo);
+    Result deleteCard(String employeeNo, String cardNo);
 
     // --- fingerprints ---
-    Result downloadFingerprint(Fingerprint fp);
+    Result captureFingerprint(int fingerNo);           // scan at the terminal
+    Result downloadFingerprint(Fingerprint fp);        // push a template
     List<Fingerprint> listFingerprints(String employeeNo);
     Result deleteFingerprint(String employeeNo, Integer fingerPrintID);
 

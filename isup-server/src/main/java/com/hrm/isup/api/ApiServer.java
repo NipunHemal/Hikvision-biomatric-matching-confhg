@@ -107,16 +107,27 @@ public final class ApiServer {
                     Person p = new Person(b.get("employeeNo").getAsString(), b.get("name").getAsString());
                     if (b.has("beginTime")) p.beginTime = b.get("beginTime").getAsString();
                     if (b.has("endTime")) p.endTime = b.get("endTime").getAsString();
+                    if (b.has("pin")) p.pin = b.get("pin").getAsString();
                     relay(ex, a.upsertPerson(p)); return;
                 }
                 if (m.equals("DELETE") && seg(s, 2, "persons") && s.length == 4) {
                     relay(ex, a.deletePerson(s[3])); return;
+                }
+                // PIN
+                if (m.equals("POST") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("pin")) {
+                    relay(ex, a.setPin(s[3], body(ex).get("pin").getAsString())); return;
                 }
                 // cards
                 if (m.equals("POST") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("card")) {
                     JsonObject b = body(ex);
                     relay(ex, a.assignCard(s[3], b.get("cardNo").getAsString(),
                             b.has("cardType") ? b.get("cardType").getAsString() : null)); return;
+                }
+                if (m.equals("GET") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("cards")) {
+                    relay(ex, a.listCards(s[3])); return;
+                }
+                if (m.equals("DELETE") && seg(s, 2, "persons") && s.length == 6 && s[4].equals("cards")) {
+                    relay(ex, a.deleteCard(s[3], s[5])); return;
                 }
                 // fingerprints
                 if (m.equals("GET") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("fingerprints")) {
@@ -131,6 +142,11 @@ public final class ApiServer {
                 }
                 if (m.equals("DELETE") && seg(s, 2, "persons") && s.length == 6 && s[4].equals("fingerprints")) {
                     relay(ex, a.deleteFingerprint(s[3], Integer.valueOf(s[5]))); return;
+                }
+                // fingerprint capture (scan at the terminal)
+                if (m.equals("POST") && seg(s, 2, "fingerprint") && s.length == 4 && s[3].equals("capture")) {
+                    JsonObject b = body(ex);
+                    relay(ex, a.captureFingerprint(b.has("fingerNo") ? b.get("fingerNo").getAsInt() : 1)); return;
                 }
                 // doors
                 if (m.equals("POST") && seg(s, 2, "door") && s.length == 3) {

@@ -1,0 +1,684 @@
+{
+  "info": {
+    "name": "Biometric Device Hub — Full API (ISUP)",
+    "description": "Complete API of the Java ISUP hub. Branch terminals dial in over ISUP; the HRM drives them here over HTTP/JSON.\n\nSet the environment: hubUrl (e.g. http://161.97.135.43:8090), deviceId (ISUP Device ID e.g. HRM02), employeeNo, cardNo, fingerPrintID.\n\n{{deviceId}} must be ONLINE — check GET /devices. Offline device → 503.\n\nNOTE on PUNCH events: punches are pushed FROM the device (fingerprint/card/face/PIN auth). The hub forwards them to HRM_EVENT_URL (configured on the hub); they are not polled here. Use the /sim collection to simulate punches in dev.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "hubUrl",
+      "value": "http://161.97.135.43:8090"
+    },
+    {
+      "key": "deviceId",
+      "value": "HRM02"
+    },
+    {
+      "key": "employeeNo",
+      "value": "E123"
+    },
+    {
+      "key": "cardNo",
+      "value": "0012345678"
+    },
+    {
+      "key": "fingerPrintID",
+      "value": "1"
+    },
+    {
+      "key": "sourceDeviceId",
+      "value": "HRM01"
+    }
+  ],
+  "item": [
+    {
+      "name": "Hub",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "isupReady=true means the native ISUP stack loaded.",
+            "url": {
+              "raw": "{{hubUrl}}/health",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "const d=pm.response.json();console.log('isupReady='+d.isupReady+' devices='+d.devices);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List online devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "All connected terminals + model + adapter.",
+            "url": {
+              "raw": "{{hubUrl}}/devices",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "console.log(JSON.stringify(pm.response.json()));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Device",
+      "item": [
+        {
+          "name": "Device brief",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "id, model, online, adapter.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Device info (live)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Live /ISAPI/System/deviceInfo over ISUP.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/info",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "info"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "What this model supports.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/capabilities",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "capabilities"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Open / control door",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "cmd: open | close | alwaysOpen | alwaysClose | resume",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/door",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "door"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doorNo\": 1,\n  \"cmd\": \"open\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Persons",
+      "item": [
+        {
+          "name": "List persons",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Auto-paginated.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Register / update person",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Creates or updates. 'pin' optional (access PIN/password).",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"name\": \"Test User\",\n  \"beginTime\": \"2026-01-01T00:00:00\",\n  \"endTime\": \"2030-12-31T23:59:59\",\n  \"pin\": \"123456\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok',()=>pm.expect([200,502]).to.include(pm.response.code));",
+                  "console.log(pm.response.text());"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete person",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Removes person + credentials.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Register on ALL devices (broadcast)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Register/update on every online device at once.",
+            "url": {
+              "raw": "{{hubUrl}}/persons/broadcast",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "persons",
+                "broadcast"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"name\": \"Test User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete from ALL devices (broadcast)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Remove from every online device.",
+            "url": {
+              "raw": "{{hubUrl}}/persons/broadcast/{{employeeNo}}",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "persons",
+                "broadcast",
+                "{{employeeNo}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PIN",
+      "item": [
+        {
+          "name": "Set PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Sets the access PIN/password for an existing person.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/pin",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "pin"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"123456\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cards",
+      "item": [
+        {
+          "name": "Assign card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Assign a card to a person.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/card",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "card"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardNo\": \"{{cardNo}}\",\n  \"cardType\": \"normalCard\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Cards for a person.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/cards",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "cards"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Delete card",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Remove a card by number.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/cards/{{cardNo}}",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "cards",
+                "{{cardNo}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fingerprints",
+      "item": [
+        {
+          "name": "List fingerprints",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Returns each finger incl. the Base64 template (used for cross-branch sync).",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprints",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "fingerprints"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Push fingerprint template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "FingerPrintDownload — push a template to the device.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprint",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "fingerprint"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerPrintID\": {{fingerPrintID}},\n  \"fingerData\": \"PASTE_BASE64_TEMPLATE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete one fingerprint",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Remove one finger slot.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprints/{{fingerPrintID}}",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "fingerprints",
+                "{{fingerPrintID}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          }
+        },
+        {
+          "name": "Capture fingerprint (scan at terminal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Asks the terminal to scan a finger now and return the template. Blocks until presented — may exceed the passthrough timeout on the terminal.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/fingerprint/capture",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "fingerprint",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerNo\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Cross-branch sync  ⭐",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads the person's template(s) from sourceDeviceId and pushes to every OTHER online device. Optional: \"targetDeviceIds\":[\"HRM03\",\"HRM04\"].",
+            "url": {
+              "raw": "{{hubUrl}}/fingerprints/sync",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "fingerprints",
+                "sync"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceDeviceId\": \"{{sourceDeviceId}}\",\n  \"employeeNo\": \"{{employeeNo}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200',()=>pm.response.to.have.status(200));",
+                  "const r=pm.response.json();console.log('found='+r.templatesFound+' targets='+JSON.stringify(r.targets));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
