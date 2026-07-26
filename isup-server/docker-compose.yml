@@ -1,0 +1,23 @@
+# Biometric Device Hub — docker-compose deployment.
+#
+#   docker compose up -d --build
+#
+# Ports are published on the host so branch terminals (dialing in over ISUP) and
+# the HRM (calling the HTTP API) can reach the container.
+services:
+  hub:
+    build: .
+    container_name: biometric-hub
+    restart: unless-stopped
+    ports:
+      - "7660:7660"       # ISUP CMS — devices register here
+      - "7663:7663"       # alarm TCP — punch events
+      - "7662:7662/udp"   # alarm UDP
+      - "8090:8090"       # HTTP API — the HRM calls this
+    volumes:
+      # Override config without rebuilding. AlarmServerIP / DasServerIP MUST be
+      # the SERVER's public/reachable IP (what the devices dial), not the
+      # container's internal IP.
+      - ./config.properties:/app/config.properties:ro
+      # Optional: persist SDK logs
+      - ./EHomeSDKLog:/app/EHomeSDKLog

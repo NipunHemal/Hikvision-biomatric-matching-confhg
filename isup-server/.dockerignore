@@ -1,0 +1,8 @@
+out/
+EHomeSDKLog/
+boot*.txt
+.idea/
+*.iml
+docs/
+postman/
+README.md
