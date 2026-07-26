@@ -5,7 +5,7 @@ The HRM-facing API. Base URL: `http://<hub>:8090`. All bodies are JSON.
 (`GET /devices`) or the call returns `503`.
 
 A Postman collection with every request is at
-[`postman/hub.postman_collection.json`](../postman/hub.postman_collection.json).
+[`postman/biometric-hub.postman_collection.json`](../postman/biometric-hub.postman_collection.json) (import with `hub-production.postman_environment.json`).
 
 ## Conventions
 
