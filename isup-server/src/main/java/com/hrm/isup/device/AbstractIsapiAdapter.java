@@ -164,12 +164,36 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
 
     // --- fingerprints ---
     @Override public Result captureFingerprint(int fingerNo) {
-        // XML-only; the device scans and returns the template. Note: this blocks
-        // until a finger is presented, so it can exceed the passthrough timeout.
+        // XML-only (no ?format=json). The device scans and returns the template
+        // as XML; we parse it into clean JSON for the HRM.
         String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                 + "<CaptureFingerPrintCond version=\"2.0\" xmlns=\"http://www.isapi.org/ver20/XMLSchema\">"
                 + "<fingerNo>" + fingerNo + "</fingerNo></CaptureFingerPrintCond>";
-        return tx.post("/ISAPI/AccessControl/CaptureFingerPrint", xml);
+        Result r = tx.post("/ISAPI/AccessControl/CaptureFingerPrint", xml);
+        if (!r.ok) return r;
+
+        String data = xmlTag(r.body, "fingerData");
+        if (data == null) {
+            // capture failed (no finger, low quality, busy) — surface the reason
+            String err = xmlTag(r.body, "subStatusCode");
+            return Result.fail("{\"ok\":false,\"error\":" + gson.toJson(err != null ? err : r.body) + "}");
+        }
+        JsonObject out = new JsonObject();
+        out.addProperty("fingerNo", intTag(r.body, "fingerNo", fingerNo));
+        out.addProperty("fingerPrintQuality", intTag(r.body, "fingerPrintQuality", 0));
+        out.addProperty("fingerData", data);
+        return Result.ok(gson.toJson(out));
+    }
+
+    private String xmlTag(String xml, String tag) {
+        if (xml == null) return null;
+        var m = java.util.regex.Pattern.compile("<" + tag + ">([^<]*)</" + tag + ">").matcher(xml);
+        return m.find() ? m.group(1) : null;
+    }
+
+    private int intTag(String xml, String tag, int def) {
+        String v = xmlTag(xml, tag);
+        try { return v == null ? def : Integer.parseInt(v.trim()); } catch (Exception e) { return def; }
     }
 
     @Override public Result downloadFingerprint(Fingerprint fp) {
