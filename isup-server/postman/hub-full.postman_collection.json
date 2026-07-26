@@ -679,6 +679,162 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Enrolment workflows (capture + assign)",
+      "item": [
+        {
+          "name": "Add person + capture fingerprint (one call)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Creates the person, then (if fingerPrintID given) asks the terminal to scan and assigns the fingerprint — all in one call. Omit fingerPrintID to just create the person.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/enroll",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "enroll"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeNo\": \"{{employeeNo}}\",\n  \"name\": \"Kamal Perera\",\n  \"pin\": \"123456\",\n  \"fingerPrintID\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Capture fingerprint + assign (single)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Scan one finger at the terminal and assign it to this person. Blocks until a finger is presented.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprint/capture",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "fingerprint",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerPrintID\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Capture fingerprints + assign (bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Scan several fingers in sequence and assign each. Alternatively pass {\"count\":2} to enrol slots 1..2. Returns a per-finger result.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprint/capture-bulk",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "fingerprint",
+                "capture-bulk"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fingerPrintIDs\": [1, 2, 3]\n}"
+            }
+          }
+        },
+        {
+          "name": "Capture card only",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads the next card presented at the reader and returns {cardNo} — no assignment.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/card/capture",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "card",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Capture card + assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Reads a card at the reader and assigns it to this person.",
+            "url": {
+              "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/card/capture",
+              "host": [
+                "{{hubUrl}}"
+              ],
+              "path": [
+                "devices",
+                "{{deviceId}}",
+                "persons",
+                "{{employeeNo}}",
+                "card",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardType\": \"normalCard\"\n}"
+            }
+          }
+        }
+      ]
     }
   ]
 }

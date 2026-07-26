@@ -150,6 +150,28 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         return tx.post("/ISAPI/AccessControl/CardInfo/Search?format=json", gson.toJson(body));
     }
 
+    @Override public Result captureCard() {
+        // Reads the next card presented at the reader. Blocks until a card is
+        // swiped, so it relies on the long passthrough timeout.
+        Result r = tx.post("/ISAPI/AccessControl/CaptureCardInfo?format=json", "{}");
+        if (!r.ok) return r;
+        // Response may be JSON {"CardInfo":{"cardNo":...}} or XML <cardNo>...</cardNo>.
+        String cardNo = null;
+        try {
+            JsonObject o = safeObj(r.body);
+            if (o.has("CardInfo")) cardNo = str(o.getAsJsonObject("CardInfo"), "cardNo");
+            else if (o.has("cardNo")) cardNo = str(o, "cardNo");
+        } catch (Exception ignored) { }
+        if (cardNo == null) cardNo = xmlTag(r.body, "cardNo");
+        if (cardNo == null || cardNo.isEmpty()) {
+            return Result.fail("{\"ok\":false,\"error\":\"no card captured\",\"raw\":"
+                    + gson.toJson(r.body) + "}");
+        }
+        JsonObject out = new JsonObject();
+        out.addProperty("cardNo", cardNo);
+        return Result.ok(gson.toJson(out));
+    }
+
     @Override public Result deleteCard(String employeeNo, String cardNo) {
         JsonObject card = new JsonObject();
         card.addProperty("cardNo", cardNo);

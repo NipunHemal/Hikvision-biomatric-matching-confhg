@@ -34,6 +34,7 @@ public interface DeviceAdapter {
     Result assignCard(String employeeNo, String cardNo, String cardType);
     Result listCards(String employeeNo);
     Result deleteCard(String employeeNo, String cardNo);
+    Result captureCard();                              // read a card at the reader
 
     // --- fingerprints ---
     Result captureFingerprint(int fingerNo);           // scan at the terminal

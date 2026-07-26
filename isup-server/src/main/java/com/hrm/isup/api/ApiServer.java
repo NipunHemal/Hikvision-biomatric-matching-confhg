@@ -6,6 +6,7 @@ import com.hrm.isup.Config;
 import com.hrm.isup.device.ConnectedDevice;
 import com.hrm.isup.device.DeviceAdapter;
 import com.hrm.isup.device.DeviceManager;
+import com.hrm.isup.device.EnrollmentService;
 import com.hrm.isup.device.FingerprintSyncService;
 import com.hrm.isup.model.Fingerprint;
 import com.hrm.isup.model.Person;
@@ -33,6 +34,7 @@ public final class ApiServer {
 
     private final DeviceManager manager;
     private final FingerprintSyncService sync;
+    private final EnrollmentService enroll = new EnrollmentService();
     private final Gson gson = new Gson();
 
     public ApiServer(DeviceManager manager, FingerprintSyncService sync) {
@@ -97,6 +99,45 @@ public final class ApiServer {
                 if (m.equals("GET") && s.length == 2) { json(ex, 200, gson.toJson(brief(dev))); return; }
                 if (m.equals("GET") && seg(s, 2, "info")) { relay(ex, a.deviceInfo()); return; }
                 if (m.equals("GET") && seg(s, 2, "capabilities")) { json(ex, 200, gson.toJson(a.capabilities())); return; }
+
+                // --- composite enrolment workflows ---
+                // Add person + optionally capture & assign a fingerprint (one call)
+                if (m.equals("POST") && seg(s, 2, "persons") && s.length == 4 && s[3].equals("enroll")) {
+                    JsonObject b = body(ex);
+                    Person p = new Person(b.get("employeeNo").getAsString(), b.get("name").getAsString());
+                    if (b.has("pin")) p.pin = b.get("pin").getAsString();
+                    Integer fpId = b.has("fingerPrintID") ? b.get("fingerPrintID").getAsInt() : null;
+                    relay(ex, enroll.enrollPerson(a, p, fpId)); return;
+                }
+                // Capture a fingerprint AND assign it to a person (single)
+                if (m.equals("POST") && seg(s, 2, "persons") && s.length == 6
+                        && s[4].equals("fingerprint") && s[5].equals("capture")) {
+                    JsonObject b = body(ex);
+                    int id = b.has("fingerPrintID") ? b.get("fingerPrintID").getAsInt() : 1;
+                    relay(ex, enroll.captureAndAssignFingerprint(a, s[3], id)); return;
+                }
+                // Capture MULTIPLE fingerprints and assign (bulk)
+                if (m.equals("POST") && seg(s, 2, "persons") && s.length == 6
+                        && s[4].equals("fingerprint") && s[5].equals("capture-bulk")) {
+                    JsonObject b = body(ex);
+                    List<Integer> ids = new ArrayList<>();
+                    if (b.has("fingerPrintIDs"))
+                        b.getAsJsonArray("fingerPrintIDs").forEach(e -> ids.add(e.getAsInt()));
+                    else { int c = b.has("count") ? b.get("count").getAsInt() : 2;
+                           for (int i = 1; i <= c; i++) ids.add(i); }
+                    relay(ex, enroll.captureAndAssignFingerprintBulk(a, s[3], ids)); return;
+                }
+                // Capture a card AND assign it to a person
+                if (m.equals("POST") && seg(s, 2, "persons") && s.length == 6
+                        && s[4].equals("card") && s[5].equals("capture")) {
+                    JsonObject b = body(ex);
+                    relay(ex, enroll.captureAndAssignCard(a, s[3],
+                            b.has("cardType") ? b.get("cardType").getAsString() : null)); return;
+                }
+                // Capture a card only (read the number, no assignment)
+                if (m.equals("POST") && seg(s, 2, "card") && s.length == 4 && s[3].equals("capture")) {
+                    relay(ex, a.captureCard()); return;
+                }
 
                 // persons
                 if (m.equals("GET") && seg(s, 2, "persons") && s.length == 3) {
