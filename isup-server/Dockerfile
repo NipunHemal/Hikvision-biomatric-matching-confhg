@@ -25,9 +25,24 @@ WORKDIR /app
 
 # Native SDK libraries + jars (Linux .so from lib-linux/)
 COPY lib-linux ./lib
+
+# The Hikvision .so and the (old) JNA jnidispatch are built requiring an
+# EXECUTABLE STACK, which modern kernels refuse ("cannot enable executable
+# stack as shared object requires"). Clear that flag with execstack. For
+# jnidispatch we pre-extract a cleared copy and pin it via jna.boot.library.path
+# so JNA does not re-extract a still-flagged copy to /tmp.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends execstack unzip \
+ && mkdir -p /app/jni \
+ && unzip -o lib/jna.jar 'com/sun/jna/linux-amd64/libjnidispatch.so' -d /tmp/jna \
+ && cp /tmp/jna/com/sun/jna/linux-amd64/libjnidispatch.so /app/jni/libjnidispatch.so \
+ && execstack -c /app/jni/libjnidispatch.so \
+ && execstack -c lib/*.so lib/HCAapSDKCom/*.so \
+ && rm -rf /tmp/jna /var/lib/apt/lists/*
+
 # Compiled classes
 COPY --from=build /build/out ./out
-# Default config (override at runtime with a mounted /app/config.properties)
+# Default config (override with env vars or a mounted /app/config.properties)
 COPY src/main/resources/config.properties ./config.properties
 
 # JNA and the dynamic linker both need to find the ISUP .so files.
@@ -37,5 +52,5 @@ ENV JNA_LIBRARY_PATH=/app/lib
 # ISUP CMS (registration), alarm TCP/UDP (events), HTTP API
 EXPOSE 7660 7663 7662/udp 8090
 
-# Build the classpath from the bundled jars at runtime.
-ENTRYPOINT ["sh","-c","java -Djna.library.path=/app/lib -cp \"out:lib/*:.\" com.hrm.isup.App"]
+# jna.boot.library.path → the exec-stack-cleared jnidispatch.
+ENTRYPOINT ["sh","-c","java -Djna.library.path=/app/lib -Djna.boot.library.path=/app/jni -cp \"out:lib/*:.\" com.hrm.isup.App"]
