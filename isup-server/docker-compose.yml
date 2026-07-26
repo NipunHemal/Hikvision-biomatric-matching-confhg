@@ -17,15 +17,16 @@ services:
       - "7662:7662/udp"   # alarm UDP
       - "8090:8090"       # HTTP API — the HRM calls this
     environment:
-      # ── set these ──
-      ISUP_KEY: "Hrm12345Key"
+      # ── set these (override from the Dokploy Environment tab) ──
+      # These read the UI env var if set, else the default after ":-".
+      ISUP_KEY: "${ISUP_KEY:-Hrm12345Key}"
       # HRM API Bearer token(s), comma-separated. REQUIRED in production.
-      API_TOKENS: "hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW"
+      API_TOKENS: "${API_TOKENS:-hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW}"
       # Enable in-memory simulated devices (test the API without hardware). Keep false in prod.
-      SIM_ENABLED: "false"
+      SIM_ENABLED: "${SIM_ENABLED:-false}"
       # The address DEVICES dial — the server's PUBLIC IP or domain (not internal).
-      ALARM_SERVER_IP: "161.97.135.43"
-      DAS_SERVER_IP: "161.97.135.43"
+      ALARM_SERVER_IP: "${ALARM_SERVER_IP:-161.97.135.43}"
+      DAS_SERVER_IP: "${DAS_SERVER_IP:-161.97.135.43}"
       # ── usually leave as default ──
       CMS_SERVER_PORT: "7660"
       DAS_SERVER_PORT: "7660"
