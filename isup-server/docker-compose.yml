@@ -18,7 +18,9 @@ services:
       - "8090:8090"       # HTTP API — the HRM calls this
     environment:
       # ── set these ──
-      ISUP_KEY: "Hrm12345Key"            # must match each device's Encryption Key
+      ISUP_KEY: "Hrm12345Key"
+      # HRM API Bearer token(s), comma-separated. REQUIRED in production.
+      API_TOKENS: "hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW"            # must match each device's Encryption Key
       # The address DEVICES dial — the server's PUBLIC IP or domain (not internal).
       ALARM_SERVER_IP: "161.97.135.43"
       DAS_SERVER_IP: "161.97.135.43"

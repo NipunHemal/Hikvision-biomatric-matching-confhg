@@ -28,6 +28,10 @@
     {
       "key": "sourceDeviceId",
       "value": "HRM01"
+    },
+    {
+      "key": "apiToken",
+      "value": "hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW"
     }
   ],
   "item": [
@@ -836,5 +840,15 @@
         }
       ]
     }
-  ]
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{apiToken}}",
+        "type": "string"
+      }
+    ]
+  }
 }

@@ -36,10 +36,37 @@ public final class ApiServer {
     private final FingerprintSyncService sync;
     private final EnrollmentService enroll = new EnrollmentService();
     private final Gson gson = new Gson();
+    private final java.util.Set<String> tokens = loadTokens();
 
     public ApiServer(DeviceManager manager, FingerprintSyncService sync) {
         this.manager = manager;
         this.sync = sync;
+    }
+
+    /** Bearer tokens the HRM must present. From API_TOKENS (comma-sep) / API_TOKEN. */
+    private static java.util.Set<String> loadTokens() {
+        java.util.Set<String> t = new java.util.HashSet<>();
+        for (String x : Config.get("API_TOKENS").split(",")) {
+            x = x.trim();
+            if (!x.isEmpty()) t.add(x);
+        }
+        String single = Config.get("API_TOKEN");
+        if (!single.isEmpty()) t.add(single);
+        return t;
+    }
+
+    private boolean authorized(HttpExchange ex) {
+        if (tokens.isEmpty()) return true; // no tokens configured -> open (dev only)
+        String h = ex.getRequestHeaders().getFirst("Authorization");
+        if (h == null || !h.startsWith("Bearer ")) return false;
+        byte[] provided = h.substring(7).trim().getBytes(StandardCharsets.UTF_8);
+        for (String t : tokens) {
+            // constant-time compare to avoid leaking the token via timing
+            if (java.security.MessageDigest.isEqual(t.getBytes(StandardCharsets.UTF_8), provided)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void start() throws IOException {
@@ -48,7 +75,10 @@ public final class ApiServer {
         http.createContext("/", this::route);
         http.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(8));
         http.start();
-        System.out.println("[api] HTTP API on http://0.0.0.0:" + port);
+        System.out.println("[api] HTTP API on http://0.0.0.0:" + port
+                + (tokens.isEmpty()
+                    ? "  ⚠ AUTH DISABLED (set API_TOKENS to require a Bearer token)"
+                    : "  (Bearer auth required, " + tokens.size() + " token(s))"));
     }
 
     private void route(HttpExchange ex) throws IOException {
@@ -59,6 +89,13 @@ public final class ApiServer {
             if (eq(s, "health")) {
                 json(ex, 200, "{\"ok\":true,\"isupReady\":" + manager.isReady()
                         + ",\"devices\":" + manager.all().size() + "}");
+                return;
+            }
+
+            // Everything else requires a valid Bearer token.
+            if (!authorized(ex)) {
+                ex.getResponseHeaders().set("WWW-Authenticate", "Bearer");
+                json(ex, 401, err("unauthorized — provide Authorization: Bearer <token>"));
                 return;
             }
 
