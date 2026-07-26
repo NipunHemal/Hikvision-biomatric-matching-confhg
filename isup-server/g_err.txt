@@ -1,0 +1,6 @@
+
+[isup] ? native ISUP SDK unavailable — HTTP API will run, but devices cannot register until the SDK libraries are present.
+[isup]   reason: java.lang.UnsatisfiedLinkError: Unable to load library 'HCISUPCMS': The specified module could not be found.
+
+[isup]   ensure lib/ has the ISUP libraries for this OS (Linux .so in a container).
+

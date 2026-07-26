@@ -54,7 +54,11 @@ public final class ApiServer {
         String[] s = ex.getRequestURI().getPath().replaceAll("^/|/$", "").split("/");
         try {
             // --- meta ---
-            if (eq(s, "health")) { json(ex, 200, "{\"ok\":true}"); return; }
+            if (eq(s, "health")) {
+                json(ex, 200, "{\"ok\":true,\"isupReady\":" + manager.isReady()
+                        + ",\"devices\":" + manager.all().size() + "}");
+                return;
+            }
 
             // --- cross-branch fingerprint sync ---
             //   POST /fingerprints/sync {sourceDeviceId, employeeNo, targetDeviceIds?}

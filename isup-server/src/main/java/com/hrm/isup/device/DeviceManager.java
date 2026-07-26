@@ -16,15 +16,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DeviceManager {
 
-    private final HCISUPCMS cms;
+    private volatile HCISUPCMS cms;   // null until the native ISUP SDK loads
     private final Map<String, ConnectedDevice> devices = new ConcurrentHashMap<>();
 
-    public DeviceManager(HCISUPCMS cms) {
-        this.cms = cms;
-    }
+    public DeviceManager() {}
+
+    /** Set once the native ISUP SDK is loaded. Until then, no devices register. */
+    public void setCms(HCISUPCMS cms) { this.cms = cms; }
+
+    /** True when the ISUP stack is loaded and able to accept device registrations. */
+    public boolean isReady() { return cms != null; }
 
     /** Called when a device comes online (ENUM_DEV_ON). */
     public ConnectedDevice online(String deviceId, int loginId) {
+        if (cms == null) return null; // ISUP not loaded — cannot happen in practice
         ConnectedDevice existing = devices.get(deviceId);
         if (existing != null) {
             existing.transport.setLoginId(loginId);

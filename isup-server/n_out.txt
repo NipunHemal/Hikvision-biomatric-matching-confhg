@@ -1,0 +1,4 @@
+[isup] CMS listening on 0.0.0.0:7660
+[isup] alarm listen failed (events may still arrive via HTTP webhook): 72
+[api] HTTP API on http://0.0.0.0:8090
+Hub up. ISUP ready. Devices dial in over ISUP; HRM drives it over the HTTP API.

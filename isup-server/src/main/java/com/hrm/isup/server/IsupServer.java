@@ -31,32 +31,55 @@ public final class IsupServer {
     private HCISUPCMS.DEVICE_REGISTER_CB registerCb;   // keep refs so JNA doesn't GC them
     private HCISUPAlarm.EHomeMsgCallBack alarmCb;
 
+    private boolean available = false;
+
     public IsupServer() {
-        this.cms = (HCISUPCMS) Native.loadLibrary("HCISUPCMS", HCISUPCMS.class);
-        this.alarm = (HCISUPAlarm) Native.loadLibrary("HCISUPAlarm", HCISUPAlarm.class);
-        this.manager = new DeviceManager(cms);
+        this.manager = new DeviceManager();
         this.eventSink = new EventSink();
     }
 
     public DeviceManager manager() { return manager; }
 
+    /** True once the native ISUP SDK loaded and the listeners started. */
+    public boolean isAvailable() { return available; }
+
+    /**
+     * Best-effort startup. If the native ISUP SDK cannot be loaded (e.g. the
+     * Linux .so files are missing in a container), this logs a clear warning and
+     * returns WITHOUT throwing — the HTTP API still comes up so the deployment
+     * stays healthy and works fully once the libraries are added.
+     */
     public void start() {
-        // ISUP 5.0 uses TLS — register crypto + SSL libs before init.
-        boolean win = System.getProperty("os.name").toLowerCase().contains("win");
-        String lib = System.getProperty("user.dir") + File.separator + "lib" + File.separator;
-        setInitCfg(0, lib + (win ? "libeay32.dll" : "libcrypto.so"));
-        setInitCfg(1, lib + (win ? "ssleay32.dll" : "libssl.so"));
+        try {
+            cms = (HCISUPCMS) Native.loadLibrary("HCISUPCMS", HCISUPCMS.class);
+            alarm = (HCISUPAlarm) Native.loadLibrary("HCISUPAlarm", HCISUPAlarm.class);
 
-        if (!cms.NET_ECMS_Init()) {
-            throw new RuntimeException("NET_ECMS_Init failed: " + cms.NET_ECMS_GetLastError());
+            // ISUP 5.0 uses TLS — register crypto + SSL libs before init.
+            boolean win = System.getProperty("os.name").toLowerCase().contains("win");
+            String lib = System.getProperty("user.dir") + File.separator + "lib" + File.separator;
+            setInitCfg(0, lib + (win ? "libeay32.dll" : "libcrypto.so"));
+            setInitCfg(1, lib + (win ? "ssleay32.dll" : "libssl.so"));
+
+            if (!cms.NET_ECMS_Init()) {
+                throw new RuntimeException("NET_ECMS_Init failed: " + cms.NET_ECMS_GetLastError());
+            }
+            setLocalCfg(5, lib + "HCAapSDKCom");
+            cms.NET_ECMS_SetLogToFile(3, System.getProperty("user.dir") + "/EHomeSDKLog", false);
+
+            alarm.NET_EALARM_Init();
+            manager.setCms(cms);
+
+            startCmsListen();
+            startAlarmListen();
+            available = true;
+        } catch (Throwable t) {
+            System.err.println("\n[isup] ⚠ native ISUP SDK unavailable — HTTP API will run, "
+                    + "but devices cannot register until the SDK libraries are present.");
+            System.err.println("[isup]   reason: " + t);
+            System.err.println("[isup]   ensure lib/ has the ISUP libraries for this OS "
+                    + "(Linux .so in a container).\n");
+            available = false;
         }
-        setLocalCfg(5, lib + "HCAapSDKCom");
-        cms.NET_ECMS_SetLogToFile(3, System.getProperty("user.dir") + "/EHomeSDKLog", false);
-
-        alarm.NET_EALARM_Init();
-
-        startCmsListen();
-        startAlarmListen();
     }
 
     public void stop() {
@@ -149,7 +172,9 @@ public final class IsupServer {
 
     private void startAlarmListen() {
         HCISUPAlarm.NET_EHOME_ALARM_LISTEN_PARAM listen = new HCISUPAlarm.NET_EHOME_ALARM_LISTEN_PARAM();
-        putIp(listen.struAddress.szIP, Config.get("AlarmServerIP"));
+        // Bind to all interfaces; AlarmServerIP (public) is only what devices are
+        // TOLD to send to — binding to it would fail unless it is a local NIC.
+        putIp(listen.struAddress.szIP, "0.0.0.0");
         listen.struAddress.wPort = (short) Config.getInt("AlarmServerTCPPort", 7663);
         listen.byProtocolType = 0; // TCP
         alarmCb = new AlarmCallback();

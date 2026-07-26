@@ -32,7 +32,8 @@ public final class App {
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(isup::stop));
-        System.out.println("Hub up. Devices dial in over ISUP; HRM drives it over the HTTP API.");
+        System.out.println("Hub up. ISUP " + (isup.isAvailable() ? "ready" : "UNAVAILABLE (HTTP API only)")
+                + ". Devices dial in over ISUP; HRM drives it over the HTTP API.");
         Thread.currentThread().join();
     }
 }

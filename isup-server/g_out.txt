@@ -1,0 +1,2 @@
+[api] HTTP API on http://0.0.0.0:8090
+Hub up. ISUP UNAVAILABLE (HTTP API only). Devices dial in over ISUP; HRM drives it over the HTTP API.

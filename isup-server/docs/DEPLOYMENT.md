@@ -64,21 +64,38 @@ the Dokploy UI (Advanced → Ports), not as domains:
 The HTTP API (8090) can be exposed via a Dokploy **domain** (Traefik + TLS) if
 the HRM calls it over HTTPS; keep it private or behind auth (it has none built in).
 
-### 4. Config — set the reachable IP
+### 4. Config — set via environment variables (Dokploy UI)
 
-`config.properties` is baked into the image, but the important values must be the
-server's **public/reachable IP** (what devices dial):
+The app reads **environment variables first** (then `config.properties`, then
+defaults), so configure everything from the Dokploy **Environment** tab — no file
+edits needed. Set these:
 
-```properties
-AlarmServerIP=<server public IP or domain>
-DasServerIP=<server public IP or domain>
-DasServerPort=7660
-ISUPKey=<your key>
-```
+| Env var | Example | Meaning |
+| --- | --- | --- |
+| `ISUP_KEY` | `Hrm12345Key` | Must match each device's Encryption Key (8–16 chars) |
+| `ALARM_SERVER_IP` | `161.97.135.43` | Server's **public IP/domain** (devices dial it) |
+| `DAS_SERVER_IP` | `161.97.135.43` | Same public IP — DAS redirect target |
+| `CMS_SERVER_PORT` | `7660` | ISUP listen port (default) |
+| `DAS_SERVER_PORT` | `7660` | default |
+| `ALARM_SERVER_TCP_PORT` | `7663` | default |
+| `ALARM_SERVER_UDP_PORT` | `7662` | default |
+| `HTTP_API_PORT` | `8090` | default |
+| `HRM_EVENT_URL` | `https://hrm.example.com/api/events` | Forward punch events (optional) |
 
-Either edit `config.properties` before pushing, or set them as Dokploy
-**environment variables** and read them (extend `Config` to prefer env vars) —
-simplest for now is to commit the correct `config.properties`.
+`ALARM_SERVER_IP` and `DAS_SERVER_IP` **must be the server's public IP/domain** —
+the address the *devices* reach it at. An internal/`127.0.0.1` value makes the DAS
+redirect unreachable and devices loop without coming online.
+
+> Env var names accept either exact-key (`ISUPKey`) or UPPER_SNAKE (`ISUP_KEY`).
+> Use UPPER_SNAKE in Dokploy.
+
+### Graceful startup — no crash without the native libs
+
+If the Linux `.so` ISUP libraries are missing, the hub **does not crash**: it logs
+a warning, the HTTP API stays up, and `GET /health` reports `"isupReady":false`.
+Add the `.so` files and redeploy to enable device registration
+(`"isupReady":true`). This keeps the Dokploy deployment healthy while you finish
+provisioning the SDK.
 
 ### 5. Deploy
 
