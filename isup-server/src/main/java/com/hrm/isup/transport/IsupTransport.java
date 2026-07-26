@@ -1,5 +1,6 @@
 package com.hrm.isup.transport;
 
+import com.hrm.isup.Config;
 import com.hrm.isup.model.Result;
 import com.hrm.isup.sdk.HCISUPCMS;
 
@@ -58,7 +59,10 @@ public final class IsupTransport implements Transport {
         HCISUPCMS.BYTE_ARRAY out = new HCISUPCMS.BYTE_ARRAY(outSize);
         p.pOutBuffer = out.getPointer();
         p.dwOutSize = outSize;
-        p.dwRecvTimeOut = 5000;
+        // The device flushes ISAPI responses on its keepalive cycle (~30s), so a
+        // short timeout drops the reply before it arrives ("WriteToCache push
+        // Failed"). Wait longer than the keepalive. Configurable via RECV_TIMEOUT_MS.
+        p.dwRecvTimeOut = Config.getInt("RECV_TIMEOUT_MS", 45000);
         p.write();
 
         if (!cms.NET_ECMS_ISAPIPassThrough(loginId, p)) {
