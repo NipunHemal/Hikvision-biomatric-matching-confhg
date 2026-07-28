@@ -56,6 +56,14 @@ public final class SimulatedDeviceAdapter implements DeviceAdapter {
 
     @Override public Person getPerson(String employeeNo) { return persons.get(employeeNo); }
 
+    /** The employeeNo owning a given fingerPrintID, or null. Used to punch by finger id. */
+    public String employeeOfFingerprint(int fingerPrintID) {
+        for (var e : fps.entrySet()) {
+            if (e.getValue().containsKey(fingerPrintID)) return e.getKey();
+        }
+        return null;
+    }
+
     @Override public Result setPin(String employeeNo, String pin) {
         Person p = persons.get(employeeNo);
         if (p == null) return Result.fail("{\"subStatusCode\":\"employeeNoNotExist\"}");

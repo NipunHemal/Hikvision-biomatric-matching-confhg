@@ -114,11 +114,66 @@ curl -X POST http://.../sim/devices/SIM01/online  -H "Authorization: Bearer $TOK
 This lets you test how the HRM handles an offline branch without unplugging
 anything.
 
+## Fake punch events → HRM webhook
+
+The simulator can generate **fake punches** (fingerprint / card / PIN / face /
+exit-button) that flow through the **same `EventSink`** real events use, so your
+HRM receives an identical `AccessEvent` payload — great for testing attendance
+ingestion end-to-end. Delivery is **immediate** (no poll delay).
+
+**1. Point events at your webhook** (overrides `HRM_EVENT_URL` at runtime):
+```bash
+curl -X POST http://.../sim/webhook -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"url":"https://webhook.site/<id>"}'
+```
+
+**2. Seed a person + credentials** (so events carry real identity):
+```bash
+curl -X POST http://.../devices/SIM01/persons -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"employeeNo":"E100","name":"Kamal Perera"}'
+curl -X POST http://.../devices/SIM01/persons/E100/fingerprint/capture \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"fingerPrintID":1}'
+```
+
+**3. Trigger punches** — your webhook receives each one instantly:
+```bash
+# fingerprint (by employee, optionally by finger id)
+curl -X POST http://.../sim/devices/SIM01/punch/fingerprint -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"employeeNo":"E100","fingerPrintID":1}'
+# card / pin / face / exit-button
+curl -X POST http://.../sim/devices/SIM01/punch/card   -H "Authorization: Bearer $TOKEN" -d '{"employeeNo":"E100"}'
+curl -X POST http://.../sim/devices/SIM01/punch/pin    -H "Authorization: Bearer $TOKEN" -d '{"employeeNo":"E100"}'
+# backdated (provide time; omit to use now)
+curl -X POST http://.../sim/devices/SIM01/punch -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"fingerprint","employeeNo":"E100","time":"2026-07-29T08:55:00+05:30"}'
+```
+
+**Event codes** (major=5): fingerprint **113**, card **38**, face **75/76**,
+exit-button **27**. PIN has no canonical code → uses `SIM_PIN_MINOR` (default 1);
+override per request with `minor`/`verifyMethod`.
+
+**Fake daily attendance** — a check-in + check-out per employee:
+```bash
+curl -X POST http://.../sim/devices/SIM01/attendance -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"employees":["E100","E101"],"checkInTime":"09:00:00","checkOutTime":"17:30:00"}'
+```
+
+**See what was generated:**
+```bash
+curl "http://.../sim/devices/SIM01/events?limit=50" -H "Authorization: Bearer $TOKEN"
+```
+
+A card punch also satisfies a pending `POST /devices/SIM01/card/capture`, so the
+event-based card-capture flow can be tested without hardware too.
+
 ## Postman
 
-The collection has a **"Simulation (no hardware - SIM_ENABLED=true)"** folder with
-all four control requests (add / offline / online / remove). After adding a
-device, point `deviceId` at `SIM01` and every other folder works against it.
+The collection's **"Simulation (no hardware - SIM_ENABLED=true)"** folder has the
+device controls (add / offline / online / remove) plus the fake-event requests
+(webhook, punch fingerprint/card/pin/face/button, attendance, events). After
+adding a device, point `deviceId` at `SIM01` and every other folder works too.
 
 ## Notes / limits
 

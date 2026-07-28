@@ -11,8 +11,13 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * Where normalised punch events go: forwarded to the HRM webhook (HrmEventUrl)
- * and logged. Swap or extend this to also persist locally, queue, etc.
+ * Where normalised punch events go: forwarded to the HRM webhook and logged.
+ * Both real (poll/alarm) and simulated events flow through here, so the HRM
+ * cannot tell them apart.
+ *
+ * Webhook target resolution: a runtime override (set via the simulator's
+ * {@code POST /sim/webhook}) wins; otherwise the {@code HrmEventUrl} config /
+ * env value. If neither is set, events are log-only.
  */
 public final class EventSink {
 
@@ -20,13 +25,26 @@ public final class EventSink {
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5)).build();
     private final String hrmUrl = Config.get("HrmEventUrl");
+    private volatile String webhookOverride;
+
+    /** Set/clear the runtime webhook (null/blank clears → falls back to HrmEventUrl). */
+    public void setWebhook(String url) {
+        this.webhookOverride = (url == null || url.isBlank()) ? null : url.trim();
+    }
+
+    /** The effective webhook target, or null if none configured. */
+    public String webhook() {
+        if (webhookOverride != null) return webhookOverride;
+        return (hrmUrl == null || hrmUrl.isEmpty()) ? null : hrmUrl;
+    }
 
     public void accept(AccessEvent event) {
-        if (hrmUrl == null || hrmUrl.isEmpty()) return; // log-only mode (caller already logged)
-        System.out.println("[hrm-forward] " + event.deviceId + " -> " + hrmUrl);
+        String target = webhook();
+        if (target == null) return; // log-only mode (caller already logged)
+        System.out.println("[hrm-forward] " + event.deviceId + " -> " + target);
 
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(hrmUrl))
+            HttpRequest req = HttpRequest.newBuilder(URI.create(target))
                     .timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(event)))

@@ -31,6 +31,7 @@ services:
       DAS_SERVER_IP: "${DAS_SERVER_IP:-161.97.135.43}"     # usually same as ALARM_SERVER_IP
       HRM_EVENT_URL: "${HRM_EVENT_URL:-}"                   # forward punch events here (blank=log only)
       SIM_ENABLED: "${SIM_ENABLED:-false}"                 # in-memory test devices; false in prod
+      SIM_PIN_MINOR: "${SIM_PIN_MINOR:-1}"                 # minor code for a simulated PIN punch
       # ── event polling (attendance/card taps) ──
       EVENT_POLL_ENABLED: "${EVENT_POLL_ENABLED:-1}"       # 1=on, 0=off
       EVENT_POLL_INTERVAL_SEC: "${EVENT_POLL_INTERVAL_SEC:-15}"

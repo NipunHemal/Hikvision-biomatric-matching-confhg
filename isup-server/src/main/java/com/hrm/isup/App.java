@@ -25,7 +25,7 @@ public final class App {
         FingerprintSyncService sync = new FingerprintSyncService(isup.manager());
 
         try {
-            new ApiServer(isup.manager(), sync).start();
+            new ApiServer(isup.manager(), sync, isup.eventSink()).start();
         } catch (Exception e) {
             isup.stop();
             throw e;

@@ -9,6 +9,8 @@ import com.hrm.isup.device.DeviceManager;
 import com.hrm.isup.device.EmployeeService;
 import com.hrm.isup.device.EnrollmentService;
 import com.hrm.isup.device.FingerprintSyncService;
+import com.hrm.isup.event.EventSink;
+import com.hrm.isup.event.SimEventService;
 import com.hrm.isup.model.Fingerprint;
 import com.hrm.isup.model.Person;
 import com.hrm.isup.model.Result;
@@ -37,12 +39,16 @@ public final class ApiServer {
     private final FingerprintSyncService sync;
     private final EnrollmentService enroll = new EnrollmentService();
     private final EmployeeService employee = new EmployeeService();
+    private final EventSink sink;
+    private final SimEventService simEvents;
     private final Gson gson = new Gson();
     private final java.util.Set<String> tokens = loadTokens();
 
-    public ApiServer(DeviceManager manager, FingerprintSyncService sync) {
+    public ApiServer(DeviceManager manager, FingerprintSyncService sync, EventSink sink) {
         this.manager = manager;
         this.sync = sync;
+        this.sink = sink;
+        this.simEvents = new SimEventService(sink);
     }
 
     /** Bearer tokens the HRM must present. From API_TOKENS (comma-sep) / API_TOKEN. */
@@ -125,6 +131,37 @@ public final class ApiServer {
                 if (m.equals("DELETE") && s.length == 3 && s[1].equals("devices")) {
                     boolean ok = manager.remove(s[2]);
                     json(ex, ok ? 200 : 404, ok ? "{\"removed\":\"" + s[2] + "\"}" : err("not found: " + s[2])); return;
+                }
+
+                // --- webhook target for fake events ---
+                //   POST/GET/DELETE /sim/webhook {url}
+                if (s.length == 2 && s[1].equals("webhook")) {
+                    if (m.equals("POST")) sink.setWebhook(body(ex).get("url").getAsString());
+                    else if (m.equals("DELETE")) sink.setWebhook(null);
+                    else if (!m.equals("GET")) { json(ex, 405, err("use GET/POST/DELETE")); return; }
+                    json(ex, 200, "{\"webhook\":" + gson.toJson(sink.webhook()) + "}"); return;
+                }
+
+                // --- fake events on a simulated device ---
+                if (s.length >= 4 && s[1].equals("devices")) {
+                    ConnectedDevice dev = manager.get(s[2]);
+                    if (dev == null || !dev.simulated) {
+                        json(ex, 404, err("no online simulated device: " + s[2])); return;
+                    }
+                    // GET /sim/devices/{id}/events?limit=N
+                    if (m.equals("GET") && s.length == 4 && s[3].equals("events")) {
+                        json(ex, 200, gson.toJson(simEvents.history(dev.deviceId, queryInt(ex, "limit", 50)))); return;
+                    }
+                    // POST /sim/devices/{id}/attendance {employees:[...], date?, checkInTime?, checkOutTime?, type?}
+                    if (m.equals("POST") && s.length == 4 && s[3].equals("attendance")) {
+                        json(ex, 200, gson.toJson(simAttendance(dev, body(ex)))); return;
+                    }
+                    // POST /sim/devices/{id}/punch  or  /punch/{type}  (fingerprint|card|pin|face|button)
+                    if (m.equals("POST") && s[3].equals("punch") && (s.length == 4 || s.length == 5)) {
+                        SimEventService.Punch p = parsePunch(body(ex));
+                        if (s.length == 5) p.type = s[4];
+                        json(ex, 200, gson.toJson(simEvents.emit(dev, p))); return;
+                    }
                 }
                 json(ex, 404, err("unknown sim route")); return;
             }
@@ -406,6 +443,75 @@ public final class ApiServer {
     }
 
     private boolean seg(String[] s, int i, String v) { return s.length > i && s[i].equals(v); }
+
+    // --- simulator fake-event helpers ---
+
+    private SimEventService.Punch parsePunch(JsonObject b) {
+        SimEventService.Punch p = new SimEventService.Punch();
+        if (b.has("type")) p.type = b.get("type").getAsString();
+        if (b.has("employeeNo")) p.employeeNo = b.get("employeeNo").getAsString();
+        if (b.has("cardNo")) p.cardNo = b.get("cardNo").getAsString();
+        if (b.has("fingerPrintID")) p.fingerPrintID = b.get("fingerPrintID").getAsInt();
+        if (b.has("doorNo")) p.doorNo = b.get("doorNo").getAsInt();
+        if (b.has("minor")) p.minor = b.get("minor").getAsInt();
+        if (b.has("verifyMethod")) p.verifyMethod = b.get("verifyMethod").getAsString();
+        if (b.has("time")) p.time = b.get("time").getAsString();
+        if (b.has("attendanceStatus")) p.attendanceStatus = b.get("attendanceStatus").getAsString();
+        if (b.has("success")) {
+            var el = b.get("success").getAsJsonPrimitive();
+            p.success = el.isBoolean() ? (el.getAsBoolean() ? 1 : 0) : el.getAsInt();
+        }
+        return p;
+    }
+
+    /** Emit a check-in + check-out punch per employee (fake daily attendance). */
+    private JsonObject simAttendance(ConnectedDevice dev, JsonObject b) {
+        List<String> emps = new ArrayList<>();
+        if (b.has("employees")) b.getAsJsonArray("employees").forEach(e -> emps.add(e.getAsString()));
+        String type = b.has("type") ? b.get("type").getAsString() : "fingerprint";
+        String inT = b.has("checkInTime") ? b.get("checkInTime").getAsString() : "09:00:00";
+        String outT = b.has("checkOutTime") ? b.get("checkOutTime").getAsString() : "17:30:00";
+        String tz = Config.get("EventPollTZ"); if (tz.isEmpty()) tz = "+05:30";
+        String date = b.has("date") ? b.get("date").getAsString()
+                : java.time.OffsetDateTime.now(java.time.ZoneOffset.of(tz)).toLocalDate().toString();
+
+        var results = new com.google.gson.JsonArray();
+        for (String emp : emps) {
+            SimEventService.Punch in = new SimEventService.Punch();
+            in.type = type; in.employeeNo = emp; in.attendanceStatus = "checkIn";
+            in.time = date + "T" + inT + tz;
+            var ein = simEvents.emit(dev, in);
+
+            SimEventService.Punch out = new SimEventService.Punch();
+            out.type = type; out.employeeNo = emp; out.attendanceStatus = "checkOut";
+            out.time = date + "T" + outT + tz;
+            var eout = simEvents.emit(dev, out);
+
+            JsonObject r = new JsonObject();
+            r.addProperty("employeeNo", emp);
+            r.addProperty("checkIn", ein.time);
+            r.addProperty("checkOut", eout.time);
+            results.add(r);
+        }
+        JsonObject out = new JsonObject();
+        out.addProperty("deviceId", dev.deviceId);
+        out.addProperty("date", date);
+        out.addProperty("employees", emps.size());
+        out.add("results", results);
+        return out;
+    }
+
+    private int queryInt(HttpExchange ex, String key, int def) {
+        String q = ex.getRequestURI().getRawQuery();
+        if (q == null) return def;
+        for (String kv : q.split("&")) {
+            int i = kv.indexOf('=');
+            if (i > 0 && kv.substring(0, i).equals(key)) {
+                try { return Integer.parseInt(kv.substring(i + 1)); } catch (Exception e) { return def; }
+            }
+        }
+        return def;
+    }
 
     /** Parse a {fingerprints:[{fingerPrintID?,fingerData,fingerType?}]} body. */
     private List<Fingerprint> parseFingerprints(String employeeNo, JsonObject b) {

@@ -44,6 +44,9 @@ public final class IsupServer {
 
     public DeviceManager manager() { return manager; }
 
+    /** The event sink (HRM webhook). Shared with the API so the simulator can emit. */
+    public EventSink eventSink() { return eventSink; }
+
     /** True once the native ISUP SDK loaded and the listeners started. */
     public boolean isAvailable() { return available; }
 

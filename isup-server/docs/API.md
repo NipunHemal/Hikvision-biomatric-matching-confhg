@@ -621,6 +621,62 @@ curl -X DELETE http://161.97.135.43:8090/sim/devices/SIM01 -H "$AUTH"
 { "removed": "SIM01" }
 ```
 
+## Fake events → HRM webhook
+
+Generate synthetic punches that flow through the **same** `EventSink` real events
+use, so the HRM receives an identical `AccessEvent` payload. Delivery is
+**immediate**. Event codes (major=5): fingerprint **113**, card **38**, face
+**75/76**, exit-button **27**; PIN uses `SIM_PIN_MINOR` (default 1).
+
+### POST/GET/DELETE /sim/webhook
+Assign the runtime webhook (overrides `HRM_EVENT_URL`). `GET` shows the current
+target; `DELETE` clears the override.
+```bash
+curl -X POST http://161.97.135.43:8090/sim/webhook -H "$AUTH" \
+  -H "Content-Type: application/json" -d '{"url":"https://webhook.site/<id>"}'
+```
+
+### POST /sim/devices/{id}/punch  ·  /punch/{type}
+`{type}` = `fingerprint` · `card` · `pin` · `face` · `button`. Every field is
+optional except as noted; omit `time` to use the current time (in `EVENT_POLL_TZ`).
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | string | on the generic route only |
+| `employeeNo` | string | resolves name; for fingerprint, optional if `fingerPrintID` given |
+| `fingerPrintID` | int | fingerprint punch; owner resolved if `employeeNo` omitted |
+| `cardNo` | string | card punch; defaults to the employee's first card |
+| `success` | bool/int | default `true` |
+| `time` | string | ISO w/ offset (e.g. `2026-07-29T09:05:00+05:30`); omit = now |
+| `doorNo` | int | default 1 |
+| `minor` / `verifyMethod` | int / string | override the derived code (e.g. for PIN) |
+
+```bash
+curl -X POST http://161.97.135.43:8090/sim/devices/SIM01/punch/fingerprint \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"employeeNo":"E100","fingerPrintID":1}'
+```
+```json
+{ "deviceId":"SIM01","majorType":5,"minorType":113,"eventName":"fingerprintAuthSuccess",
+  "verifyMethod":"fingerprint","success":1,"employeeNo":"E100","personName":"Kamal Perera",
+  "time":"2026-07-29T09:05:00+05:30" }
+```
+
+### POST /sim/devices/{id}/attendance
+Emit a check-in **and** check-out punch per employee (fake daily attendance).
+```bash
+curl -X POST http://161.97.135.43:8090/sim/devices/SIM01/attendance -H "$AUTH" \
+  -H "Content-Type: application/json" \
+  -d '{"employees":["E100","E101"],"checkInTime":"09:00:00","checkOutTime":"17:30:00"}'
+```
+```json
+{ "deviceId":"SIM01","date":"2026-07-29","employees":2,
+  "results":[{"employeeNo":"E100","checkIn":"...T09:00:00+05:30","checkOut":"...T17:30:00+05:30"}] }
+```
+
+### GET /sim/devices/{id}/events?limit=N
+List recent fake events generated for the device (verification).
+
 ---
 
 # Endpoint index

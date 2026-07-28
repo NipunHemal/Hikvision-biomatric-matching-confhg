@@ -231,6 +231,330 @@
        "raw": ""
       }
      }
+    },
+    {
+     "name": "Set webhook",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Assign the runtime webhook that fake (and real) events are POSTed to. Overrides HRM_EVENT_URL.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/webhook",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "webhook"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"url\": \"https://webhook.site/your-id\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Get webhook",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Show the current effective webhook target.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/webhook",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "webhook"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
+    },
+    {
+     "name": "Clear webhook",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Clear the override; fall back to HRM_EVENT_URL.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/webhook",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "webhook"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
+    },
+    {
+     "name": "Punch: fingerprint",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Fake fingerprint punch (minor 113). Omit time to use now. fingerPrintID optional; if given without employeeNo the owner is resolved.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/fingerprint",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "punch",
+        "fingerprint"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1\n}"
+      }
+     }
+    },
+    {
+     "name": "Punch: card",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Fake card punch (minor 38). cardNo optional (uses the employee's first card).",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/card",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "punch",
+        "card"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"employeeNo\": \"E100\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Punch: pin",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Fake PIN punch (minor = SIM_PIN_MINOR). verifyMethod=password.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/pin",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "punch",
+        "pin"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"employeeNo\": \"E100\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Punch: face",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Fake face punch (minor 75; success:false => 76 faceAuthFail).",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/face",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "punch",
+        "face"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"employeeNo\": \"E100\"\n}"
+      }
+     }
+    },
+    {
+     "name": "Punch: exit button",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Fake exit-button press (minor 27, no person).",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/button",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "punch",
+        "button"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"doorNo\": 1\n}"
+      }
+     }
+    },
+    {
+     "name": "Punch: generic (with time)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Generic punch. type=fingerprint|card|pin|face|button. Provide time (ISO w/ offset) to backdate; minor/verifyMethod override any type.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/punch",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "punch"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"type\": \"fingerprint\",\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1,\n  \"time\": \"2026-07-29T09:05:00+05:30\",\n  \"success\": true\n}"
+      }
+     }
+    },
+    {
+     "name": "Attendance: check-in/out",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Emit a check-in and check-out punch per employee (fake daily attendance).",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/attendance",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "attendance"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"employees\": [\n    \"E100\",\n    \"E101\"\n  ],\n  \"type\": \"fingerprint\",\n  \"checkInTime\": \"09:00:00\",\n  \"checkOutTime\": \"17:30:00\"\n}"
+      }
+     }
+    },
+    {
+     "name": "List fake events",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Recent fake events generated for this device.",
+      "url": {
+       "raw": "{{hubUrl}}/sim/devices/SIM01/events?limit=50",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "sim",
+        "devices",
+        "SIM01",
+        "events"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "50"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
     }
    ]
   },
