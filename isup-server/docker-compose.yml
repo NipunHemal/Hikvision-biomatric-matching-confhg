@@ -39,6 +39,7 @@ services:
       # ── behaviour tuning (rarely changed) ──
       SDK_LOG_LEVEL: "${SDK_LOG_LEVEL:-1}"                 # 0-none 1-error 2-info 3-debug
       CARD_CAPTURE_WAIT_MS: "${CARD_CAPTURE_WAIT_MS:-45000}"
+      ALARM_LISTEN_ENABLED: "${ALARM_LISTEN_ENABLED:-0}"   # 0=events via polling (reliable), 1=push channel
       ALARM_REUSE_CMS_PORT: "${ALARM_REUSE_CMS_PORT:-1}"
       ALARM_SERVER_TYPE: "${ALARM_SERVER_TYPE:-2}"
       # ── ports (change only if you remap the published ports above) ──

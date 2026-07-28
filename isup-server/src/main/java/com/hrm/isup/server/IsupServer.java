@@ -83,7 +83,15 @@ public final class IsupServer {
             manager.setCms(cms);
 
             startCmsListen();
-            startAlarmListen();
+            // The push/alarm channel is unreliable on this device (reuse-mode error
+            // 72; auto event-host setup times out and causes reconnect churn). Event
+            // polling is the reliable path, so the alarm listener is OFF by default.
+            // Set ALARM_LISTEN_ENABLED=1 to re-enable the experimental push channel.
+            if ("1".equals(Config.get("AlarmListenEnabled"))) {
+                startAlarmListen();
+            } else {
+                System.out.println("[isup] alarm listener disabled — using event polling for events");
+            }
             eventPoll.start();   // poll AcsEvent over passthrough (reliable event path)
             available = true;
         } catch (Throwable t) {
