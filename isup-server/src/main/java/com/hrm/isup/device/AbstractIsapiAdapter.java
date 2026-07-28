@@ -366,6 +366,21 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         return tx.put("/ISAPI/AccessControl/FingerPrintDelete?format=json", gson.toJson(body));
     }
 
+    // --- events ---
+    @Override public Result queryAcsEvents(String startTime, String endTime, int position, int maxResults) {
+        JsonObject cond = new JsonObject();
+        cond.addProperty("searchID", "acs-" + System.nanoTime());
+        cond.addProperty("searchResultPosition", position);
+        cond.addProperty("maxResults", maxResults);
+        cond.addProperty("major", 5);          // 5 = access-control events (punches)
+        cond.addProperty("minor", 0);          // 0 = all sub-types
+        cond.addProperty("startTime", startTime);
+        cond.addProperty("endTime", endTime);
+        JsonObject body = new JsonObject();
+        body.add("AcsEventCond", cond);
+        return tx.post("/ISAPI/AccessControl/AcsEvent?format=json", gson.toJson(body));
+    }
+
     // --- doors ---
     @Override public Result controlDoor(int doorNo, String cmd) {
         JsonObject rc = new JsonObject();

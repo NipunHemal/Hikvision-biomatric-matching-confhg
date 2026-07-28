@@ -3,6 +3,7 @@ package com.hrm.isup.server;
 import com.hrm.isup.Config;
 import com.hrm.isup.device.CardCaptureRegistry;
 import com.hrm.isup.device.DeviceManager;
+import com.hrm.isup.event.EventPollService;
 import com.hrm.isup.event.EventSink;
 import com.hrm.isup.model.AccessEvent;
 import com.hrm.isup.sdk.HCISUPAlarm;
@@ -25,6 +26,7 @@ public final class IsupServer {
 
     private final DeviceManager manager;
     private final EventSink eventSink;
+    private final EventPollService eventPoll;
     public HCISUPCMS cms;
     public HCISUPAlarm alarm;
     private int cmsHandle = -1;
@@ -37,6 +39,7 @@ public final class IsupServer {
     public IsupServer() {
         this.manager = new DeviceManager();
         this.eventSink = new EventSink();
+        this.eventPoll = new EventPollService(manager, eventSink);
     }
 
     public DeviceManager manager() { return manager; }
@@ -78,6 +81,7 @@ public final class IsupServer {
 
             startCmsListen();
             startAlarmListen();
+            eventPoll.start();   // poll AcsEvent over passthrough (reliable event path)
             available = true;
         } catch (Throwable t) {
             System.err.println("\n[isup] ⚠ native ISUP SDK unavailable — HTTP API will run, "
@@ -90,6 +94,7 @@ public final class IsupServer {
     }
 
     public void stop() {
+        eventPoll.stop();
         if (cmsHandle >= 0) cms.NET_ECMS_StopListen(cmsHandle);
         if (alarmHandle >= 0) alarm.NET_EALARM_StopListen(alarmHandle);
         if (alarm != null) alarm.NET_EALARM_Fini();

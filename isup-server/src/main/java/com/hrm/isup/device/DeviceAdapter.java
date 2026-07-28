@@ -58,6 +58,16 @@ public interface DeviceAdapter {
     // --- doors ---
     Result controlDoor(int doorNo, String cmd);
 
+    // --- events ---
+    /**
+     * Query the device's access-event log (card taps / fingerprint & face
+     * punches) for a time window. Used to POLL for events over the reliable
+     * ISAPI passthrough, instead of the push/alarm channel. Default: unsupported.
+     */
+    default Result queryAcsEvents(String startTime, String endTime, int position, int maxResults) {
+        return Result.fail("{\"error\":\"acs events not supported\"}");
+    }
+
     final class Capabilities {
         public boolean persons = true;
         public boolean cards = true;
