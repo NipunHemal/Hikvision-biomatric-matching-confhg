@@ -178,24 +178,37 @@ public final class IsupServer {
 
     private void startAlarmListen() {
         HCISUPAlarm.NET_EHOME_ALARM_LISTEN_PARAM listen = new HCISUPAlarm.NET_EHOME_ALARM_LISTEN_PARAM();
-        // Bind to all interfaces; AlarmServerIP (public) is only what devices are
-        // TOLD to send to — binding to it would fail unless it is a local NIC.
-        putIp(listen.struAddress.szIP, "0.0.0.0");
-        listen.struAddress.wPort = (short) Config.getInt("AlarmServerTCPPort", 7663);
-        // ISUP 5.0 delivers events over MQTT (byProtocolType=2), NOT plain TCP.
-        // With TCP(0) the device connects but the event stream is never decoded,
-        // so the callback never fires. This matches the reference SDK demo, which
-        // listens with byProtocolType=2 when AlarmServerType=2.
-        listen.byProtocolType = 2; // 0-TCP, 1-UDP, 2-MQTT
-        listen.byUseCmsPort = 0;   // do not reuse the CMS port
         alarmCb = new AlarmCallback();
         listen.fnMsgCb = alarmCb;
+
+        // This DS-K1T808 (and ISUP 5.0 MQTT devices generally) keeps ONE MQTT
+        // connection to the CMS port (7660) and multiplexes EVERYTHING over it —
+        // registration, ISAPI passthrough AND events. It never opens a separate
+        // link to 7663, so a standalone alarm listener there never fires. Reusing
+        // the CMS port hooks the alarm callback into that single connection so
+        // card taps / punches are delivered. Set ALARM_REUSE_CMS_PORT=0 to fall
+        // back to a separate MQTT listener on 7663 (for devices that do connect
+        // out to an alarm host).
+        boolean reuse = !"0".equals(Config.get("AlarmReuseCmsPort"));
+        int cmsPort = Config.getInt("CmsServerPort", 7660);
+        if (reuse) {
+            putIp(listen.struAddress.szIP, "127.0.0.1"); // loopback when reusing CMS port
+            listen.struAddress.wPort = (short) cmsPort;
+            listen.byUseCmsPort = 1;                     // protocol type ignored in this mode
+        } else {
+            putIp(listen.struAddress.szIP, "0.0.0.0");
+            listen.struAddress.wPort = (short) Config.getInt("AlarmServerTCPPort", 7663);
+            listen.byProtocolType = 2;                   // 0-TCP, 1-UDP, 2-MQTT
+            listen.byUseCmsPort = 0;
+        }
         listen.write();
 
         alarmHandle = alarm.NET_EALARM_StartListen(listen);
         if (alarmHandle < 0) {
-            System.out.println("[isup] alarm listen failed (events may still arrive via HTTP webhook): "
-                    + alarm.NET_EALARM_GetLastError());
+            System.out.println("[isup] alarm listen failed: " + alarm.NET_EALARM_GetLastError());
+        } else if (reuse) {
+            System.out.println("[isup] alarm listening (reusing CMS port " + cmsPort
+                    + "; events arrive over the device's MQTT connection)");
         } else {
             System.out.println("[isup] alarm listening on " + Config.get("AlarmServerIP") + ":"
                     + Config.getInt("AlarmServerTCPPort", 7663));
