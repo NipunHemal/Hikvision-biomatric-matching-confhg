@@ -150,9 +150,11 @@ public final class IsupServer {
                             reg.struRegInfo.bySessionKey.length);
                     sk.write();
                     boolean ok = cms.NET_ECMS_SetDeviceSessionKey(sk.getPointer());
-                    alarm.NET_EALARM_SetDeviceSessionKey(sk.getPointer());
+                    boolean okAlarm = alarm.NET_EALARM_SetDeviceSessionKey(sk.getPointer());
                     System.out.println("[isup] ENUM_DEV_SESSIONKEY device="
-                            + trim(reg.struRegInfo.byDeviceID) + " setKey=" + ok);
+                            + trim(reg.struRegInfo.byDeviceID) + " cmsKey=" + ok
+                            + " alarmKey=" + okAlarm
+                            + " (alarm channel needs alarmKey=true to decode events)");
                     return true;
                 }
                 case HCISUPCMS.EHOME_REGISTER_TYPE.ENUM_DEV_DAS_REQ: {
