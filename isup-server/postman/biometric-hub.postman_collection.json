@@ -14,6 +14,11 @@
    "value": "HRM02"
   },
   {
+   "key": "simDeviceId",
+   "value": "SIM01",
+   "type": "string"
+  },
+  {
    "key": "employeeNo",
    "value": "E123"
   },
@@ -142,7 +147,7 @@
       },
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"deviceId\": \"SIM01\",\n  \"model\": \"DS-K1T808MFWX-B\"\n}"
+       "raw": "{\n  \"deviceId\": \"{{simDeviceId}}\",\n  \"model\": \"DS-K1T808MFWX-B\"\n}"
       }
      }
     },
@@ -158,14 +163,14 @@
       ],
       "description": "Mimic power/network loss — calls to it now return 503.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/offline",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/offline",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "offline"
        ]
       },
@@ -187,14 +192,14 @@
       ],
       "description": "Bring the simulated device back online.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/online",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/online",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "online"
        ]
       },
@@ -216,14 +221,14 @@
       ],
       "description": "Tear down the simulated device.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01"
+        "{{simDeviceId}}"
        ]
       },
       "body": {
@@ -325,14 +330,14 @@
       ],
       "description": "Fake fingerprint punch (minor 113). Omit time to use now. fingerPrintID optional; if given without employeeNo the owner is resolved.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/fingerprint",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/fingerprint",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "punch",
         "fingerprint"
        ]
@@ -355,14 +360,14 @@
       ],
       "description": "Fake card punch (minor 38). cardNo optional (uses the employee's first card).",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/card",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/card",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "punch",
         "card"
        ]
@@ -385,14 +390,14 @@
       ],
       "description": "Fake PIN punch (minor = SIM_PIN_MINOR). verifyMethod=password.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/pin",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/pin",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "punch",
         "pin"
        ]
@@ -415,14 +420,14 @@
       ],
       "description": "Fake face punch (minor 75; success:false => 76 faceAuthFail).",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/face",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/face",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "punch",
         "face"
        ]
@@ -445,14 +450,14 @@
       ],
       "description": "Fake exit-button press (minor 27, no person).",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/punch/button",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/button",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "punch",
         "button"
        ]
@@ -475,14 +480,14 @@
       ],
       "description": "Generic punch. type=fingerprint|card|pin|face|button. Provide time (ISO w/ offset) to backdate; minor/verifyMethod override any type.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/punch",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "punch"
        ]
       },
@@ -504,14 +509,14 @@
       ],
       "description": "Emit a check-in and check-out punch per employee (fake daily attendance).",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/attendance",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/attendance",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "attendance"
        ]
       },
@@ -533,14 +538,14 @@
       ],
       "description": "Recent fake events generated for this device.",
       "url": {
-       "raw": "{{hubUrl}}/sim/devices/SIM01/events?limit=50",
+       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/events?limit=50",
        "host": [
         "{{hubUrl}}"
        ],
        "path": [
         "sim",
         "devices",
-        "SIM01",
+        "{{simDeviceId}}",
         "events"
        ],
        "query": [
