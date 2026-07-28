@@ -197,7 +197,8 @@ adding a device, point `deviceId` at `SIM01` and every other folder works too.
 
 An MCP server exposes the simulator as tools for Claude Desktop / Cursor / Claude
 Code, so a developer can add devices, set the webhook, and fire fake punches by
-just asking the AI. See [`../mcp/README.md`](../mcp/README.md).
+just asking the AI. Full guide: [`MCP.md`](MCP.md) · quick reference:
+[`../mcp/README.md`](../mcp/README.md).
 
 ## Notes / limits
 
