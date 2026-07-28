@@ -70,19 +70,50 @@ The app reads **environment variables first** (then `config.properties`, then
 defaults), so configure everything from the Dokploy **Environment** tab — no file
 edits needed. Set these:
 
-| Env var | Example | Meaning |
+**How to change any config:** every value below is wired in `docker-compose.yml`
+as `${VAR:-default}`. Set the variable (same name) in the **Dokploy → Environment**
+tab and **redeploy**. If a variable is *not* set in the UI, the default is used.
+No file edits needed. (Names are underscore-insensitive: `EVENT_POLL_TZ` and
+`EventPollTZ` both work.)
+
+**Commonly changed**
+
+| Env var | Default | Meaning |
 | --- | --- | --- |
 | `ISUP_KEY` | `Hrm12345Key` | Must match each device's Encryption Key (8–16 chars) |
+| `API_TOKENS` | *(sample)* | HRM Bearer token(s), comma-separated. Empty = auth OFF (dev only) |
 | `ALARM_SERVER_IP` | `161.97.135.43` | Server's **public IP/domain** (devices dial it) |
 | `DAS_SERVER_IP` | `161.97.135.43` | Same public IP — DAS redirect target |
-| `CMS_SERVER_PORT` | `7660` | ISUP listen port (default) |
-| `DAS_SERVER_PORT` | `7660` | default |
-| `ALARM_SERVER_TCP_PORT` | `7663` | default |
-| `ALARM_SERVER_UDP_PORT` | `7662` | default |
-| `HTTP_API_PORT` | `8090` | default |
-| `API_TOKENS` | `hub_xxx,hub_yyy` | HRM Bearer token(s), comma-separated. Empty = auth OFF (dev only) |
-| `SIM_ENABLED` | `false` | Enable in-memory simulated devices for testing. Keep `false` in prod |
-| `HRM_EVENT_URL` | `https://hrm.example.com/api/events` | Forward punch events (optional) |
+| `HRM_EVENT_URL` | *(blank)* | Forward punch events here. Blank = log only |
+| `SIM_ENABLED` | `false` | In-memory test devices. Keep `false` in prod |
+
+**Event polling (attendance / card taps)**
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `EVENT_POLL_ENABLED` | `1` | `1`=on, `0`=off |
+| `EVENT_POLL_INTERVAL_SEC` | `15` | How often each device is polled |
+| `EVENT_POLL_LOOKBACK_SEC` | `120` | Time-window size per poll |
+| `EVENT_POLL_TZ` | `+05:30` | **Device timezone offset — must match the device**, else no events |
+
+**Behaviour tuning (rarely changed)**
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `SDK_LOG_LEVEL` | `1` | Hikvision SDK console log: 0-none, 1-error, 2-info, 3-debug |
+| `CARD_CAPTURE_WAIT_MS` | `45000` | `/card/capture` wait for a physical tap |
+| `ALARM_REUSE_CMS_PORT` | `1` | `1`=events over the CMS MQTT connection (this device); `0`=separate 7663 link |
+| `ALARM_SERVER_TYPE` | `2` | Alarm protocol sent to device: 0-UDP, 1-UDP+TCP, 2-MQTT |
+
+**Ports (change only if you remap the published ports)**
+
+| Env var | Default |
+| --- | --- |
+| `CMS_SERVER_PORT` | `7660` |
+| `DAS_SERVER_PORT` | `7660` |
+| `ALARM_SERVER_TCP_PORT` | `7663` |
+| `ALARM_SERVER_UDP_PORT` | `7662` |
+| `HTTP_API_PORT` | `8090` |
 
 `ALARM_SERVER_IP` and `DAS_SERVER_IP` **must be the server's public IP/domain** —
 the address the *devices* reach it at. An internal/`127.0.0.1` value makes the DAS
