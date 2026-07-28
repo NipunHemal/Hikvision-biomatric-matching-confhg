@@ -194,24 +194,56 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
 
     @Override public Result captureCard() {
         // Reads the next card presented at the reader. Blocks until a card is
-        // swiped, so it relies on the long passthrough timeout.
+        // swiped, so it relies on the long passthrough timeout (RECV_TIMEOUT_MS).
         Result r = tx.post("/ISAPI/AccessControl/CaptureCardInfo?format=json", "{}");
+        String preview = r.body == null ? "" : r.body.substring(0, Math.min(400, r.body.length()));
+        System.out.println("[card] CaptureCardInfo ok=" + r.ok + " reply=" + preview);
         if (!r.ok) return r;
-        // Response may be JSON {"CardInfo":{"cardNo":...}} or XML <cardNo>...</cardNo>.
-        String cardNo = null;
-        try {
-            JsonObject o = safeObj(r.body);
-            if (o.has("CardInfo")) cardNo = str(o.getAsJsonObject("CardInfo"), "cardNo");
-            else if (o.has("cardNo")) cardNo = str(o, "cardNo");
-        } catch (Exception ignored) { }
+
+        // The device wraps the number under a container whose name varies by
+        // firmware (CaptureCardInfo / CardInfo / top-level), and some return XML.
+        // Find "cardNo" wherever it is instead of guessing the wrapper.
+        String cardNo = findValue(r.body, "cardNo");
         if (cardNo == null) cardNo = xmlTag(r.body, "cardNo");
-        if (cardNo == null || cardNo.isEmpty()) {
-            return Result.fail("{\"ok\":false,\"error\":\"no card captured\",\"raw\":"
+
+        if (cardNo == null || cardNo.isEmpty() || cardNo.equals("0")) {
+            // Surface exactly what the device said so the reason is visible
+            // (e.g. timeout, "not support", "deviceBusy", empty swipe).
+            return Result.fail("{\"ok\":false,\"error\":\"no card captured\",\"deviceReply\":"
                     + gson.toJson(r.body) + "}");
         }
         JsonObject out = new JsonObject();
         out.addProperty("cardNo", cardNo);
+        String cardType = findValue(r.body, "cardType");
+        if (cardType != null) out.addProperty("cardType", cardType);
         return Result.ok(gson.toJson(out));
+    }
+
+    /** Find the first non-empty value for {@code key} anywhere in a JSON tree. */
+    private String findValue(String json, String key) {
+        try { return findValue(gson.fromJson(json, JsonElement.class), key); }
+        catch (Exception e) { return null; }
+    }
+
+    private String findValue(JsonElement el, String key) {
+        if (el == null || el.isJsonNull()) return null;
+        if (el.isJsonObject()) {
+            JsonObject o = el.getAsJsonObject();
+            if (o.has(key) && o.get(key).isJsonPrimitive()) {
+                String v = o.get(key).getAsString();
+                if (v != null && !v.isEmpty()) return v;
+            }
+            for (var e : o.entrySet()) {
+                String v = findValue(e.getValue(), key);
+                if (v != null) return v;
+            }
+        } else if (el.isJsonArray()) {
+            for (JsonElement e : el.getAsJsonArray()) {
+                String v = findValue(e, key);
+                if (v != null) return v;
+            }
+        }
+        return null;
     }
 
     @Override public Result deleteCard(String employeeNo, String cardNo) {
