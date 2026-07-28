@@ -198,10 +198,12 @@ public final class IsupServer {
     private final class AlarmCallback implements HCISUPAlarm.EHomeMsgCallBack {
         @Override
         public boolean invoke(int iHandle, HCISUPAlarm.NET_EHOME_ALARM_MSG pAlarmMsg, Pointer pUser) {
-            // Plumbing is in place; the detailed field extraction from the alarm
-            // struct (employeeNo, minor, verify method) depends on the exact
-            // command code and must be mapped against a live device. Until then
-            // events are forwarded with what is safely available.
+            // Unconditional: proves the alarm channel is delivering something.
+            // If a card tap produces NO "[alarm] callback" line, the device's
+            // events are not reaching this server (firewall on 7663/7662, or the
+            // device isn't reporting to the alarm host).
+            System.out.println("[alarm] callback fired, cmd=" + pAlarmMsg.dwAlarmType
+                    + " xmlLen=" + pAlarmMsg.dwXmlBufLen);
             AccessEvent evt = new AccessEvent();
             try {
                 evt.deviceId = trim(pAlarmMsg.sSerialNumber);
