@@ -175,6 +175,12 @@ device controls (add / offline / online / remove) plus the fake-event requests
 (webhook, punch fingerprint/card/pin/face/button, attendance, events). After
 adding a device, point `deviceId` at `SIM01` and every other folder works too.
 
+## Drive it from an AI tool (MCP)
+
+An MCP server exposes the simulator as tools for Claude Desktop / Cursor / Claude
+Code, so a developer can add devices, set the webhook, and fire fake punches by
+just asking the AI. See [`../mcp/README.md`](../mcp/README.md).
+
 ## Notes / limits
 
 - Data is **in-memory** — it resets on restart. It is a test aid, not storage.

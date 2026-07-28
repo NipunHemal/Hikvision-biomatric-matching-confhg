@@ -1,0 +1,21 @@
+{
+  "name": "biometric-hub-mcp",
+  "version": "1.0.0",
+  "description": "MCP server to drive the Biometric Device Hub simulator (fake punch events, devices, webhook) from any AI tool.",
+  "type": "module",
+  "bin": {
+    "biometric-hub-mcp": "index.js"
+  },
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
