@@ -42,8 +42,12 @@ public final class EventPollService {
     private final ZoneOffset tz = parseOffset(Config.get("EventPollTZ"));
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx");
 
+    private final int unreachableFails = Config.getInt("EventPollUnreachableFails", 3);
+
     /** Highest AcsEvent serialNo already forwarded, per device. */
     private final Map<String, Long> lastSerial = new ConcurrentHashMap<>();
+    /** Consecutive failed polls per device (session dead / device offline). */
+    private final Map<String, Integer> failures = new ConcurrentHashMap<>();
     private ScheduledExecutorService exec;
 
     public EventPollService(DeviceManager manager, EventSink sink) {
@@ -91,10 +95,10 @@ public final class EventPollService {
         for (int page = 0; page < 50; page++) {
             Result r = d.adapter.queryAcsEvents(start, end, position, 30);
             if (!r.ok) {
-                if (firstPoll) System.out.println("[poll] " + d.deviceId + " AcsEvent query failed: "
-                        + preview(r.body));
+                if (page == 0) noteFailure(d, r.body);  // dead session / offline
                 return;
             }
+            if (page == 0) failures.remove(d.deviceId); // reachable again — reset
             JsonObject acs = obj(r.body).getAsJsonObject("AcsEvent");
             if (acs == null) return;
             JsonArray list = acs.getAsJsonArray("InfoList");
@@ -119,6 +123,24 @@ public final class EventPollService {
         if (batchMax > maxSeen) lastSerial.put(d.deviceId, batchMax);
         else if (firstPoll) lastSerial.put(d.deviceId, maxSeen); // record baseline even if empty
         if (emitted > 0) System.out.println("[poll] " + d.deviceId + " forwarded " + emitted + " event(s)");
+    }
+
+    /**
+     * A poll failed (usually the device's MQTT session is dead — it went offline
+     * without an OFF callback). After a few in a row, stop polling the ghost so we
+     * don't spam the SDK with sends to a dead session; it resumes automatically
+     * when the device re-registers (ENUM_DEV_ON).
+     */
+    private void noteFailure(ConnectedDevice d, String body) {
+        int f = failures.merge(d.deviceId, 1, Integer::sum);
+        if (f == 1) System.out.println("[poll] " + d.deviceId + " poll failed (" + preview(body) + ")");
+        if (f >= unreachableFails) {
+            System.out.println("[poll] " + d.deviceId + " unreachable after " + f
+                    + " failed polls — pausing until it re-registers");
+            manager.offline(d.deviceId);   // stops polling; API returns 503 until re-register
+            failures.remove(d.deviceId);
+            lastSerial.remove(d.deviceId); // re-baseline on reconnect
+        }
     }
 
     private void emit(String deviceId, JsonObject row) {
