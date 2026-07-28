@@ -264,9 +264,24 @@ public final class ApiServer {
                     relay(ex, enroll.captureAndAssignCard(a, s[3],
                             b.has("cardType") ? b.get("cardType").getAsString() : null)); return;
                 }
-                // Capture a card only (read the number, no assignment)
+                // Capture a card only (read the number, no assignment).
+                // Try the synchronous ISAPI first; if the firmware doesn't support
+                // it (DS-K1T808 → methodNotAllowed), wait for a physical card tap
+                // to arrive as an access event ("event-based capture").
                 if (m.equals("POST") && seg(s, 2, "card") && s.length == 4 && s[3].equals("capture")) {
-                    relay(ex, a.captureCard()); return;
+                    Result cap = a.captureCard();
+                    if (cap.ok) { relay(ex, cap); return; }
+                    if (cap.body != null && cap.body.contains("\"supported\":false")) {
+                        int waitMs = Config.getInt("CARD_CAPTURE_WAIT_MS", 45000);
+                        String cardNo = com.hrm.isup.device.CardCaptureRegistry.await(dev.deviceId, waitMs);
+                        if (cardNo != null) {
+                            json(ex, 200, "{\"cardNo\":\"" + cardNo + "\",\"source\":\"tap-event\"}"); return;
+                        }
+                        json(ex, 504, err("no card tapped within " + (waitMs / 1000)
+                                + "s (event-based capture; ensure the alarm/event channel is receiving taps)"));
+                        return;
+                    }
+                    relay(ex, cap); return;
                 }
 
                 // does this employee exist on this device?

@@ -207,10 +207,20 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         if (cardNo == null) cardNo = xmlTag(r.body, "cardNo");
 
         if (cardNo == null || cardNo.isEmpty() || cardNo.equals("0")) {
-            // Surface exactly what the device said so the reason is visible
-            // (e.g. timeout, "not support", "deviceBusy", empty swipe).
-            return Result.fail("{\"ok\":false,\"error\":\"no card captured\",\"deviceReply\":"
-                    + gson.toJson(r.body) + "}");
+            // Distinguish "device does not support live capture" from a genuine
+            // empty/timed-out swipe, so the HRM gets an actionable message.
+            String sub = findValue(r.body, "subStatusCode");
+            boolean notSupported = r.body != null && (r.body.contains("methodNotAllowed")
+                    || r.body.contains("notSupport") || r.body.contains("invalidOperation"));
+            String msg = notSupported
+                    ? "live card capture not supported by this device firmware "
+                      + "(CaptureCardInfo -> " + sub + "). Assign a known cardNo via "
+                      + "POST /devices/{id}/persons/{employeeNo}/card, or capture the card "
+                      + "by tapping it (event-based capture)."
+                    : "no card captured (empty swipe or timeout)";
+            return Result.fail("{\"ok\":false,\"error\":" + gson.toJson(msg)
+                    + ",\"supported\":" + (!notSupported)
+                    + ",\"deviceReply\":" + gson.toJson(r.body) + "}");
         }
         JsonObject out = new JsonObject();
         out.addProperty("cardNo", cardNo);

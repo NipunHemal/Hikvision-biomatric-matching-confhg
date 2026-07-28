@@ -1,6 +1,7 @@
 package com.hrm.isup.server;
 
 import com.hrm.isup.Config;
+import com.hrm.isup.device.CardCaptureRegistry;
 import com.hrm.isup.device.DeviceManager;
 import com.hrm.isup.event.EventSink;
 import com.hrm.isup.model.AccessEvent;
@@ -212,6 +213,18 @@ public final class IsupServer {
                 evt.deviceId = "unknown";
             }
             evt.eventName = "accessEvent";
+            // Log the raw payload so the exact event format (card/employee fields)
+            // can be mapped from a live tap, and pull common fields generically.
+            if (evt.raw != null) {
+                System.out.println("[event] raw from " + evt.deviceId + ": "
+                        + evt.raw.substring(0, Math.min(600, evt.raw.length())));
+                evt.cardNo = firstMatch(evt.raw, "cardNo");
+                evt.employeeNo = firstMatch(evt.raw, "employeeNoString", "employeeNo");
+                evt.personName = firstMatch(evt.raw, "name");
+            }
+            // Feed a live card tap to any pending capture waiter for this device.
+            if (evt.cardNo != null && !evt.cardNo.isEmpty())
+                CardCaptureRegistry.offer(evt.deviceId, evt.cardNo);
             eventSink.accept(evt);
             return true;
         }
@@ -237,6 +250,20 @@ public final class IsupServer {
 
     private static String trim(byte[] b) {
         return new String(b, StandardCharsets.UTF_8).trim().replace("\0", "");
+    }
+
+    /** Find the first value for any of {@code keys} in a JSON or XML payload. */
+    private static String firstMatch(String raw, String... keys) {
+        if (raw == null) return null;
+        for (String k : keys) {
+            var j = java.util.regex.Pattern
+                    .compile("\"" + k + "\"\\s*:\\s*\"?([^\",}\\]]+)").matcher(raw);
+            if (j.find()) return j.group(1).trim();
+            var x = java.util.regex.Pattern
+                    .compile("<" + k + ">([^<]+)</" + k + ">").matcher(raw);
+            if (x.find()) return x.group(1).trim();
+        }
+        return null;
     }
 
     private HCISUPCMS.NET_EHOME_DEV_REG_INFO_V12 readRegInfo(Pointer pOutBuffer) {

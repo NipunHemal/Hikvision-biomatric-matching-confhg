@@ -283,18 +283,32 @@ curl -X DELETE http://161.97.135.43:8090/devices/HRM01/persons/E100/cards/001234
 ## POST /devices/{id}/card/capture
 **Read a card at the reader** (no assignment). The user taps a card; the hub
 returns its number. Blocks until a card is presented (see timing note).
+
+Two mechanisms, tried automatically:
+1. **Synchronous ISAPI** (`CaptureCardInfo`) — used if the firmware supports it.
+2. **Event-based capture** — for firmware that does **not** (e.g. **DS-K1T808**,
+   which returns `methodNotAllowed`): the hub waits up to `CARD_CAPTURE_WAIT_MS`
+   (default 45 s) for the card tap to arrive as an access event, then returns the
+   number. Requires the alarm/event channel to be receiving taps.
+
 ```bash
 curl -X POST http://161.97.135.43:8090/devices/HRM01/card/capture -H "$AUTH" \
   -H "Content-Type: application/json" -d '{}'
 ```
-Success:
+Success (ISAPI):
 ```json
 { "cardNo": "100001000", "cardType": "normalCard" }
 ```
-No card / failure (raw device reply included for diagnosis):
+Success (event-based, after a tap):
 ```json
-{ "ok": false, "error": "no card captured", "deviceReply": "..." }
+{ "cardNo": "0012345678", "source": "tap-event" }
 ```
+No tap within the window → `504`:
+```json
+{ "ok": false, "error": "no card tapped within 45s (event-based capture; ...)" }
+```
+If the device supports neither and no tap arrives, assign a **known** card number
+instead via `POST /devices/{id}/persons/{employeeNo}/card`.
 
 ---
 
