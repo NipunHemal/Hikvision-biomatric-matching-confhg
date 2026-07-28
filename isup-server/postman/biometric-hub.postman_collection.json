@@ -125,443 +125,464 @@
    "name": "Simulation (no hardware - SIM_ENABLED=true)",
    "item": [
     {
-     "name": "Add simulated device",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Create an in-memory device that behaves like a DS-K1T808. Comes online immediately.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"deviceId\": \"{{simDeviceId}}\",\n  \"model\": \"DS-K1T808MFWX-B\"\n}"
-      }
-     }
-    },
-    {
-     "name": "Set device OFFLINE",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Mimic power/network loss — calls to it now return 503.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/offline",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "offline"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": ""
-      }
-     }
-    },
-    {
-     "name": "Set device ONLINE",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Bring the simulated device back online.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/online",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "online"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": ""
-      }
-     }
-    },
-    {
-     "name": "Remove simulated device",
-     "request": {
-      "method": "DELETE",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Tear down the simulated device.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": ""
-      }
-     }
-    },
-    {
-     "name": "Set webhook",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Assign the runtime webhook that fake (and real) events are POSTed to. Overrides HRM_EVENT_URL.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/webhook",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "webhook"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"url\": \"https://webhook.site/your-id\"\n}"
-      }
-     }
-    },
-    {
-     "name": "Get webhook",
-     "request": {
-      "method": "GET",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Show the current effective webhook target.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/webhook",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "webhook"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": ""
-      }
-     }
-    },
-    {
-     "name": "Clear webhook",
-     "request": {
-      "method": "DELETE",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Clear the override; fall back to HRM_EVENT_URL.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/webhook",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "webhook"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": ""
-      }
-     }
-    },
-    {
-     "name": "Punch: fingerprint",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Fake fingerprint punch (minor 113). Omit time to use now. fingerPrintID optional; if given without employeeNo the owner is resolved.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/fingerprint",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "punch",
-        "fingerprint"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1\n}"
-      }
-     }
-    },
-    {
-     "name": "Punch: card",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Fake card punch (minor 38). cardNo optional (uses the employee's first card).",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/card",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "punch",
-        "card"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"employeeNo\": \"E100\"\n}"
-      }
-     }
-    },
-    {
-     "name": "Punch: pin",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Fake PIN punch (minor = SIM_PIN_MINOR). verifyMethod=password.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/pin",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "punch",
-        "pin"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"employeeNo\": \"E100\"\n}"
-      }
-     }
-    },
-    {
-     "name": "Punch: face",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Fake face punch (minor 75; success:false => 76 faceAuthFail).",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/face",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "punch",
-        "face"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"employeeNo\": \"E100\"\n}"
-      }
-     }
-    },
-    {
-     "name": "Punch: exit button",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Fake exit-button press (minor 27, no person).",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/button",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "punch",
-        "button"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"doorNo\": 1\n}"
-      }
-     }
-    },
-    {
-     "name": "Punch: generic (with time)",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Generic punch. type=fingerprint|card|pin|face|button. Provide time (ISO w/ offset) to backdate; minor/verifyMethod override any type.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "punch"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"type\": \"fingerprint\",\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1,\n  \"time\": \"2026-07-29T09:05:00+05:30\",\n  \"success\": true\n}"
-      }
-     }
-    },
-    {
-     "name": "Attendance: check-in/out",
-     "request": {
-      "method": "POST",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Emit a check-in and check-out punch per employee (fake daily attendance).",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/attendance",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "attendance"
-       ]
-      },
-      "body": {
-       "mode": "raw",
-       "raw": "{\n  \"employees\": [\n    \"E100\",\n    \"E101\"\n  ],\n  \"type\": \"fingerprint\",\n  \"checkInTime\": \"09:00:00\",\n  \"checkOutTime\": \"17:30:00\"\n}"
-      }
-     }
-    },
-    {
-     "name": "List fake events",
-     "request": {
-      "method": "GET",
-      "header": [
-       {
-        "key": "Content-Type",
-        "value": "application/json"
-       }
-      ],
-      "description": "Recent fake events generated for this device.",
-      "url": {
-       "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/events?limit=50",
-       "host": [
-        "{{hubUrl}}"
-       ],
-       "path": [
-        "sim",
-        "devices",
-        "{{simDeviceId}}",
-        "events"
-       ],
-       "query": [
-        {
-         "key": "limit",
-         "value": "50"
+     "name": "1. Devices (add / on / off / remove)",
+     "item": [
+      {
+       "name": "Add simulated device",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Create an in-memory device that behaves like a DS-K1T808. Comes online immediately.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"deviceId\": \"{{simDeviceId}}\",\n  \"model\": \"DS-K1T808MFWX-B\"\n}"
         }
-       ]
+       }
       },
-      "body": {
-       "mode": "raw",
-       "raw": ""
+      {
+       "name": "Set device OFFLINE",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Mimic power/network loss — calls to it now return 503.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/offline",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "offline"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      },
+      {
+       "name": "Set device ONLINE",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Bring the simulated device back online.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/online",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "online"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      },
+      {
+       "name": "Remove simulated device",
+       "request": {
+        "method": "DELETE",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Tear down the simulated device.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
       }
-     }
+     ]
+    },
+    {
+     "name": "2. Webhook (assign target)",
+     "item": [
+      {
+       "name": "Set webhook",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Assign the runtime webhook that fake (and real) events are POSTed to. Overrides HRM_EVENT_URL.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/webhook",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "webhook"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"url\": \"https://webhook.site/your-id\"\n}"
+        }
+       }
+      },
+      {
+       "name": "Get webhook",
+       "request": {
+        "method": "GET",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Show the current effective webhook target.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/webhook",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "webhook"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      },
+      {
+       "name": "Clear webhook",
+       "request": {
+        "method": "DELETE",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Clear the override; fall back to HRM_EVENT_URL.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/webhook",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "webhook"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "3. Punch events (fingerprint / card / pin / face / button)",
+     "item": [
+      {
+       "name": "Punch: fingerprint",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Fake fingerprint punch (minor 113). Omit time to use now. fingerPrintID optional; if given without employeeNo the owner is resolved.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/fingerprint",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch",
+          "fingerprint"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1\n}"
+        }
+       }
+      },
+      {
+       "name": "Punch: card",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Fake card punch (minor 38). cardNo optional (uses the employee's first card).",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/card",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch",
+          "card"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"employeeNo\": \"E100\"\n}"
+        }
+       }
+      },
+      {
+       "name": "Punch: pin",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Fake PIN punch (minor = SIM_PIN_MINOR). verifyMethod=password.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/pin",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch",
+          "pin"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"employeeNo\": \"E100\"\n}"
+        }
+       }
+      },
+      {
+       "name": "Punch: face",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Fake face punch (minor 75; success:false => 76 faceAuthFail).",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/face",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch",
+          "face"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"employeeNo\": \"E100\"\n}"
+        }
+       }
+      },
+      {
+       "name": "Punch: exit button",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Fake exit-button press (minor 27, no person).",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/button",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch",
+          "button"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"doorNo\": 1\n}"
+        }
+       }
+      },
+      {
+       "name": "Punch: generic (with time)",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Generic punch. type=fingerprint|card|pin|face|button. Provide time (ISO w/ offset) to backdate; minor/verifyMethod override any type.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"type\": \"fingerprint\",\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1,\n  \"time\": \"2026-07-29T09:05:00+05:30\",\n  \"success\": true\n}"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "4. Attendance & history",
+     "item": [
+      {
+       "name": "Attendance: check-in/out",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Emit a check-in and check-out punch per employee (fake daily attendance).",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/attendance",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "attendance"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"employees\": [\n    \"E100\",\n    \"E101\"\n  ],\n  \"type\": \"fingerprint\",\n  \"checkInTime\": \"09:00:00\",\n  \"checkOutTime\": \"17:30:00\"\n}"
+        }
+       }
+      },
+      {
+       "name": "List fake events",
+       "request": {
+        "method": "GET",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Recent fake events generated for this device.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/events?limit=50",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "events"
+         ],
+         "query": [
+          {
+           "key": "limit",
+           "value": "50"
+          }
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      }
+     ]
     }
-   ]
+   ],
+   "description": "In-memory simulator — needs SIM_ENABLED=true. 1) add a device, 2) assign a webhook, 3) fire fake punches (they POST to the webhook exactly like real events), 4) generate check-in/out attendance and list generated events. Uses {{simDeviceId}} (default SIM01)."
   },
   {
    "name": "Device",
