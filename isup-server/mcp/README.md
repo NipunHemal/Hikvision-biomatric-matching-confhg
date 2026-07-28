@@ -71,12 +71,15 @@ Restart the tool; the `biometric-sim` tools appear.
 | `sim_add_device` | Add an in-memory device (`deviceId`, `model?`) |
 | `sim_device_power` | Bring a sim device online/offline |
 | `sim_remove_device` | Remove a sim device |
-| `sim_set_webhook` | Assign the webhook events POST to (empty = clear) |
-| `sim_get_webhook` | Show the current webhook target |
+| `sim_set_webhook` | Assign the GLOBAL webhook events POST to (empty = clear) |
+| `sim_get_webhook` | Show the global webhook target |
+| `sim_set_device_webhook` | Assign a PER-DEVICE webhook (overrides global) |
+| `sim_get_device_webhook` | Show a device's effective webhook |
 | `seed_person` | Create a person (`employeeNo`, `name`) |
 | `enroll_fingerprint` | Capture + assign a fake fingerprint |
 | `assign_card` | Assign a card number to a person |
 | `sim_punch` | Fire a fake punch (fingerprint/card/pin/face/button), optional `time` |
+| `sim_punch_fingerprint_match` | Match a template → punch the owner if enrolled |
 | `sim_attendance` | Check-in + check-out punch per employee |
 | `sim_list_events` | List generated fake events |
 

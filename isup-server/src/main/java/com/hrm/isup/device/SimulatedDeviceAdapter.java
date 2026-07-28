@@ -64,6 +64,21 @@ public final class SimulatedDeviceAdapter implements DeviceAdapter {
         return null;
     }
 
+    /**
+     * Match a template against enrolled fingerprints and return the matching
+     * Fingerprint (with its employeeNo + fingerPrintID), or null if no match.
+     * Templates here are opaque blobs, so "match" is exact template equality.
+     */
+    public Fingerprint matchFingerprint(String fingerData) {
+        if (fingerData == null || fingerData.isEmpty()) return null;
+        for (var byEmp : fps.entrySet()) {
+            for (Fingerprint fp : byEmp.getValue().values()) {
+                if (fingerData.equals(fp.fingerData)) return fp;
+            }
+        }
+        return null;
+    }
+
     @Override public Result setPin(String employeeNo, String pin) {
         Person p = persons.get(employeeNo);
         if (p == null) return Result.fail("{\"subStatusCode\":\"employeeNoNotExist\"}");

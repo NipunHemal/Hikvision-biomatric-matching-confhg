@@ -121,11 +121,17 @@ exit-button) that flow through the **same `EventSink`** real events use, so your
 HRM receives an identical `AccessEvent` payload — great for testing attendance
 ingestion end-to-end. Delivery is **immediate** (no poll delay).
 
-**1. Point events at your webhook** (overrides `HRM_EVENT_URL` at runtime):
+**1. Point events at your webhook** — global, or per device:
 ```bash
+# global (all devices) — overrides HRM_EVENT_URL
 curl -X POST http://.../sim/webhook -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d '{"url":"https://webhook.site/<id>"}'
+
+# per-device (this device only; overrides the global one)
+curl -X POST http://.../sim/devices/SIM01/webhook -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"url":"https://webhook.site/<id>"}'
 ```
+Resolution per event: **per-device → global → `HRM_EVENT_URL`**.
 
 **2. Seed a person + credentials** (so events carry real identity):
 ```bash
@@ -152,6 +158,18 @@ curl -X POST http://.../sim/devices/SIM01/punch -H "Authorization: Bearer $TOKEN
 **Event codes** (major=5): fingerprint **113**, card **38**, face **75/76**,
 exit-button **27**. PIN has no canonical code → uses `SIM_PIN_MINOR` (default 1);
 override per request with `minor`/`verifyMethod`.
+
+**Match a fingerprint template** — present a template; the device matches it
+against enrolled fingers and punches the owner if found (mimics a real reader):
+```bash
+# grab an enrolled template, then match it
+TPL=$(curl -s http://.../devices/SIM01/persons/E100/fingerprints \
+  -H "Authorization: Bearer $TOKEN" | jq -r '.[0].fingerData')
+curl -X POST http://.../sim/devices/SIM01/punch/fingerprint/match \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"fingerData\":\"$TPL\"}"
+# → {"matched":true,"employeeNo":"E100","fingerPrintID":1,"event":{...}}   (404 if no match)
+```
 
 **Fake daily attendance** — a check-in + check-out per employee:
 ```bash

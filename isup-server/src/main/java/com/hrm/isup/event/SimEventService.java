@@ -9,6 +9,7 @@ import com.hrm.isup.device.ConnectedDevice;
 import com.hrm.isup.device.DeviceAdapter;
 import com.hrm.isup.device.SimulatedDeviceAdapter;
 import com.hrm.isup.model.AccessEvent;
+import com.hrm.isup.model.Fingerprint;
 import com.hrm.isup.model.Person;
 import com.hrm.isup.model.Result;
 
@@ -121,6 +122,39 @@ public final class SimEventService {
         record(deviceId, evt);
         sink.accept(evt);   // → HRM webhook (immediate)
         return evt;
+    }
+
+    /**
+     * Match a submitted template against the device's enrolled fingerprints; on a
+     * match, emit a fingerprint punch for that employee. Mimics a real reader:
+     * present a finger → device matches → punch.
+     */
+    public JsonObject fingerprintMatchPunch(ConnectedDevice dev, String fingerData, String time, Integer doorNo) {
+        JsonObject out = new JsonObject();
+        if (!(dev.adapter instanceof SimulatedDeviceAdapter sim)) {
+            out.addProperty("matched", false);
+            out.addProperty("error", "matching is only available on simulated devices");
+            return out;
+        }
+        Fingerprint m = sim.matchFingerprint(fingerData);
+        if (m == null) {
+            out.addProperty("matched", false);
+            System.out.println("[sim-event] " + dev.deviceId + " fingerprint match: NO MATCH");
+            return out;
+        }
+        Punch p = new Punch();
+        p.type = "fingerprint";
+        p.employeeNo = m.employeeNo;
+        p.fingerPrintID = m.fingerPrintID;
+        p.time = time;
+        p.doorNo = doorNo;
+        AccessEvent evt = emit(dev, p);
+
+        out.addProperty("matched", true);
+        out.addProperty("employeeNo", m.employeeNo);
+        out.addProperty("fingerPrintID", m.fingerPrintID);
+        out.add("event", gson.toJsonTree(evt));
+        return out;
     }
 
     /** Recent fake events for a device (most recent last), capped by {@code limit}. */

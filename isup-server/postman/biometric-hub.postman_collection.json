@@ -243,7 +243,7 @@
      ]
     },
     {
-     "name": "2. Webhook (assign target)",
+     "name": "2. Webhook (global + per-device)",
      "item": [
       {
        "name": "Set webhook",
@@ -317,6 +317,93 @@
          ],
          "path": [
           "sim",
+          "webhook"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      },
+      {
+       "name": "Set device webhook",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Per-device webhook — events from THIS device POST here (overrides the global webhook).",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/webhook",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "webhook"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"url\": \"https://webhook.site/your-id\"\n}"
+        }
+       }
+      },
+      {
+       "name": "Get device webhook",
+       "request": {
+        "method": "GET",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Effective webhook for this device (per-device -> global -> HRM_EVENT_URL).",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/webhook",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "webhook"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": ""
+        }
+       }
+      },
+      {
+       "name": "Clear device webhook",
+       "request": {
+        "method": "DELETE",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Clear the per-device override; fall back to the global webhook.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/webhook",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
           "webhook"
          ]
         },
@@ -507,6 +594,37 @@
         "body": {
          "mode": "raw",
          "raw": "{\n  \"type\": \"fingerprint\",\n  \"employeeNo\": \"E100\",\n  \"fingerPrintID\": 1,\n  \"time\": \"2026-07-29T09:05:00+05:30\",\n  \"success\": true\n}"
+        }
+       }
+      },
+      {
+       "name": "Punch: fingerprint MATCH",
+       "request": {
+        "method": "POST",
+        "header": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ],
+        "description": "Submit a Base64 template; if it matches an enrolled fingerprint, a punch fires for that employee. Get a template from GET .../fingerprints or the capture response.",
+        "url": {
+         "raw": "{{hubUrl}}/sim/devices/{{simDeviceId}}/punch/fingerprint/match",
+         "host": [
+          "{{hubUrl}}"
+         ],
+         "path": [
+          "sim",
+          "devices",
+          "{{simDeviceId}}",
+          "punch",
+          "fingerprint",
+          "match"
+         ]
+        },
+        "body": {
+         "mode": "raw",
+         "raw": "{\n  \"fingerData\": \"<base64-template>\"\n}"
         }
        }
       }

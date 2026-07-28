@@ -628,13 +628,44 @@ use, so the HRM receives an identical `AccessEvent` payload. Delivery is
 **immediate**. Event codes (major=5): fingerprint **113**, card **38**, face
 **75/76**, exit-button **27**; PIN uses `SIM_PIN_MINOR` (default 1).
 
-### POST/GET/DELETE /sim/webhook
-Assign the runtime webhook (overrides `HRM_EVENT_URL`). `GET` shows the current
-target; `DELETE` clears the override.
+### POST/GET/DELETE /sim/webhook  (global)
+Assign the **global** webhook (overrides `HRM_EVENT_URL` for all devices). `GET`
+shows the target; `DELETE` clears it.
 ```bash
 curl -X POST http://161.97.135.43:8090/sim/webhook -H "$AUTH" \
   -H "Content-Type: application/json" -d '{"url":"https://webhook.site/<id>"}'
 ```
+
+### POST/GET/DELETE /sim/devices/{id}/webhook  (per-device)
+Assign a webhook for **one device**. Resolution order per event:
+**per-device → global → `HRM_EVENT_URL`**. Empty `url` (or `DELETE`) clears it.
+```bash
+curl -X POST http://161.97.135.43:8090/sim/devices/SIM01/webhook -H "$AUTH" \
+  -H "Content-Type: application/json" -d '{"url":"https://webhook.site/<id>"}'
+# → {"deviceId":"SIM01","webhook":"https://webhook.site/<id>"}
+```
+
+### POST /sim/devices/{id}/punch/fingerprint/match
+Submit a **template**; if it matches a fingerprint enrolled on the device, a
+fingerprint punch fires for the matched employee (mimics a real reader). Get a
+template from `GET .../fingerprints` or a capture response.
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `fingerData` | string (Base64) | ✅ |
+| `time` | string | — (omit = now) |
+| `doorNo` | int | — |
+
+```bash
+curl -X POST http://161.97.135.43:8090/sim/devices/SIM01/punch/fingerprint/match \
+  -H "$AUTH" -H "Content-Type: application/json" -d '{"fingerData":"<base64>"}'
+```
+Match → `200`:
+```json
+{ "matched": true, "employeeNo": "E100", "fingerPrintID": 1,
+  "event": { "majorType":5, "minorType":113, "employeeNo":"E100", ... } }
+```
+No match → `404 {"matched": false}`.
 
 ### POST /sim/devices/{id}/punch  ·  /punch/{type}
 `{type}` = `fingerprint` · `card` · `pin` · `face` · `button`. Every field is

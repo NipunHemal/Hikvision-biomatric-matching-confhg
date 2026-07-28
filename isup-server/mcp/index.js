@@ -77,8 +77,18 @@ tool("sim_set_webhook", "Assign the runtime webhook that punch events POST to (o
   { url: z.string().describe("full URL, or empty string to clear") },
   ({ url }) => (url ? hub("/sim/webhook", "POST", { url }) : hub("/sim/webhook", "DELETE")));
 
-tool("sim_get_webhook", "Show the current effective webhook target.", {},
+tool("sim_get_webhook", "Show the current GLOBAL webhook target.", {},
   () => hub("/sim/webhook"));
+
+tool("sim_set_device_webhook", "Assign a PER-DEVICE webhook (overrides the global one for this device). Empty url clears it.",
+  { deviceId: z.string(), url: z.string().describe("full URL, or empty to clear") },
+  ({ deviceId, url }) => (url
+    ? hub(`/sim/devices/${deviceId}/webhook`, "POST", { url })
+    : hub(`/sim/devices/${deviceId}/webhook`, "DELETE")));
+
+tool("sim_get_device_webhook", "Show the effective webhook target for a device.",
+  { deviceId: z.string() },
+  ({ deviceId }) => hub(`/sim/devices/${deviceId}/webhook`));
 
 // --- seed identity so events carry a real person ---
 tool("seed_person", "Create or update a person on a device.",
@@ -111,6 +121,16 @@ tool("sim_punch",
     doorNo: z.number().int().optional(),
   },
   ({ deviceId, ...body }) => hub(`/sim/devices/${deviceId}/punch`, "POST", body));
+
+tool("sim_punch_fingerprint_match",
+  "Submit a fingerprint template; if it matches an enrolled template, trigger a punch for the matched employee. Returns matched:false if none match.",
+  {
+    deviceId: z.string(),
+    fingerData: z.string().describe("Base64 template to match against enrolled fingers"),
+    time: z.string().optional().describe("ISO w/ offset; omit = now"),
+    doorNo: z.number().int().optional(),
+  },
+  ({ deviceId, ...body }) => hub(`/sim/devices/${deviceId}/punch/fingerprint/match`, "POST", body));
 
 tool("sim_attendance",
   "Generate a check-in AND check-out punch per employee (fake daily attendance).",

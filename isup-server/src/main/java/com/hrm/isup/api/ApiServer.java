@@ -148,6 +148,24 @@ public final class ApiServer {
                     if (dev == null || !dev.simulated) {
                         json(ex, 404, err("no online simulated device: " + s[2])); return;
                     }
+                    // POST/GET/DELETE /sim/devices/{id}/webhook {url} — per-device target
+                    if (s.length == 4 && s[3].equals("webhook")) {
+                        if (m.equals("POST")) sink.setDeviceWebhook(dev.deviceId, body(ex).get("url").getAsString());
+                        else if (m.equals("DELETE")) sink.setDeviceWebhook(dev.deviceId, null);
+                        else if (!m.equals("GET")) { json(ex, 405, err("use GET/POST/DELETE")); return; }
+                        json(ex, 200, "{\"deviceId\":\"" + dev.deviceId + "\",\"webhook\":"
+                                + gson.toJson(sink.webhookFor(dev.deviceId)) + "}"); return;
+                    }
+                    // POST /sim/devices/{id}/punch/fingerprint/match {fingerData, time?, doorNo?}
+                    if (m.equals("POST") && s.length == 6 && s[3].equals("punch")
+                            && s[4].equals("fingerprint") && s[5].equals("match")) {
+                        JsonObject b = body(ex);
+                        if (!b.has("fingerData")) { json(ex, 400, err("fingerData (Base64 template) required")); return; }
+                        JsonObject r = simEvents.fingerprintMatchPunch(dev, b.get("fingerData").getAsString(),
+                                b.has("time") ? b.get("time").getAsString() : null,
+                                b.has("doorNo") ? b.get("doorNo").getAsInt() : null);
+                        json(ex, r.get("matched").getAsBoolean() ? 200 : 404, gson.toJson(r)); return;
+                    }
                     // GET /sim/devices/{id}/events?limit=N
                     if (m.equals("GET") && s.length == 4 && s[3].equals("events")) {
                         json(ex, 200, gson.toJson(simEvents.history(dev.deviceId, queryInt(ex, "limit", 50)))); return;
