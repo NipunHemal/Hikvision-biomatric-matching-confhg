@@ -121,7 +121,7 @@ public final class IsupServer {
                     srv.read();
                     putIp(srv.struUDPAlarmSever.szIP, Config.get("AlarmServerIP"));
                     putIp(srv.struTCPAlarmSever.szIP, Config.get("AlarmServerIP"));
-                    srv.dwAlarmServerType = Config.getInt("AlarmServerType", 1);
+                    srv.dwAlarmServerType = Config.getInt("AlarmServerType", 2);
                     srv.struTCPAlarmSever.wPort = (short) Config.getInt("AlarmServerTCPPort", 7663);
                     srv.struUDPAlarmSever.wPort = (short) Config.getInt("AlarmServerUDPPort", 7662);
                     putIp(srv.struPictureSever.szIP, Config.get("PicServerIP"));
@@ -180,7 +180,12 @@ public final class IsupServer {
         // TOLD to send to — binding to it would fail unless it is a local NIC.
         putIp(listen.struAddress.szIP, "0.0.0.0");
         listen.struAddress.wPort = (short) Config.getInt("AlarmServerTCPPort", 7663);
-        listen.byProtocolType = 0; // TCP
+        // ISUP 5.0 delivers events over MQTT (byProtocolType=2), NOT plain TCP.
+        // With TCP(0) the device connects but the event stream is never decoded,
+        // so the callback never fires. This matches the reference SDK demo, which
+        // listens with byProtocolType=2 when AlarmServerType=2.
+        listen.byProtocolType = 2; // 0-TCP, 1-UDP, 2-MQTT
+        listen.byUseCmsPort = 0;   // do not reuse the CMS port
         alarmCb = new AlarmCallback();
         listen.fnMsgCb = alarmCb;
         listen.write();
