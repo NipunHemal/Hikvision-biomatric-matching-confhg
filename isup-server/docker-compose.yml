@@ -11,11 +11,15 @@ services:
     build: .
     container_name: biometric-hub
     restart: unless-stopped
+    # Publishing ports to the host. NOTE: this does NOT open the host OS firewall
+    # or the cloud-provider firewall — 7663/7662 are the ones for device EVENTS
+    # (card taps / punches). If events don't arrive, run scripts/open-ports.sh on
+    # the server AND open 7663/tcp + 7662/udp in the cloud provider's panel.
     ports:
-      - "7660:7660"       # ISUP CMS — devices register here (raw TCP)
-      - "7663:7663"       # alarm TCP — punch events
-      - "7662:7662/udp"   # alarm UDP
-      - "8090:8090"       # HTTP API — the HRM calls this
+      - "0.0.0.0:7660:7660"       # ISUP CMS — devices register here (raw TCP)
+      - "0.0.0.0:7663:7663"       # alarm TCP — punch / card-tap events  ← events
+      - "0.0.0.0:7662:7662/udp"   # alarm UDP — events (fallback)        ← events
+      - "0.0.0.0:8090:8090"       # HTTP API — the HRM calls this
     environment:
       # ── set these (override from the Dokploy Environment tab) ──
       # These read the UI env var if set, else the default after ":-".
