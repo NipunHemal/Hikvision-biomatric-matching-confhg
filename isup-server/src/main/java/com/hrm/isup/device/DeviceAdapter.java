@@ -27,6 +27,19 @@ public interface DeviceAdapter {
     Result deletePerson(String employeeNo);
     List<Person> listPersons();
 
+    /**
+     * Look up a single person by employeeNo, or null if not enrolled on this
+     * device. Default scans listPersons(); adapters should override with a
+     * targeted query where the device supports one.
+     */
+    default Person getPerson(String employeeNo) {
+        if (employeeNo == null) return null;
+        for (Person p : listPersons()) {
+            if (employeeNo.equals(p.employeeNo)) return p;
+        }
+        return null;
+    }
+
     // --- PIN ---
     Result setPin(String employeeNo, String pin);
 

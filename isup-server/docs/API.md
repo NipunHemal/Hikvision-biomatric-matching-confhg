@@ -60,6 +60,40 @@ Optional: `beginTime`, `endTime` (validity window).
 ### DELETE /devices/{id}/persons/{employeeNo}
 Remove a person.
 
+### GET /devices/{id}/persons/{employeeNo}/exists
+Is this employee enrolled on this device?
+```json
+{ "employeeNo": "E123", "exists": true, "name": "Kamal Perera" }
+```
+
+### GET /devices/{id}/persons/{employeeNo}/details
+Full profile in one call — person data + fingerprints (with templates) + cards + pin.
+```json
+{
+  "employeeNo": "E123", "exists": true,
+  "person": { "name": "Kamal Perera", "userType": "normal",
+              "beginTime": "...", "endTime": "...", "pin": null },
+  "fingerprints": [ { "fingerPrintID": 1, "fingerType": "normalFP", "fingerData": "<base64>" } ],
+  "fingerprintCount": 1,
+  "cards": { "CardInfoSearch": { "...": "device reply" } },
+  "pinNote": "PIN is write-only on hardware devices; null means not retrievable"
+}
+```
+
+### GET /persons/{employeeNo}/exists
+Check the employee across **every** device (which branches has them, and how many
+fingerprints each holds).
+```json
+{
+  "employeeNo": "E123", "existsOnCount": 2,
+  "devices": [
+    { "deviceId": "HRM01", "online": true, "exists": true, "fingerprintCount": 2 },
+    { "deviceId": "HRM02", "online": true, "exists": false },
+    { "deviceId": "HRM03", "online": false, "exists": false, "reason": "offline" }
+  ]
+}
+```
+
 ### POST /persons/broadcast
 Register/update on **every** online device at once.
 ```json
@@ -97,6 +131,35 @@ Push a template to the device.
 
 ### DELETE /devices/{id}/persons/{employeeNo}/fingerprints/{fingerPrintID}
 Remove one finger.
+
+### DELETE /devices/{id}/persons/{employeeNo}/fingerprints
+Remove **all** of a person's fingerprints on this device.
+
+### PUT /devices/{id}/persons/{employeeNo}/fingerprints  ⭐ override
+Replace the whole set: delete every existing finger, then insert the supplied
+templates (one or many). Idempotent re-enrolment.
+```json
+{ "fingerprints": [
+    { "fingerPrintID": 1, "fingerData": "<base64>" },
+    { "fingerPrintID": 2, "fingerData": "<base64>" }
+] }
+```
+```json
+{ "employeeNo": "E123", "previousDeleted": true, "requested": 2, "inserted": 2,
+  "fingers": [ {"fingerPrintID":1,"ok":true}, {"fingerPrintID":2,"ok":true} ] }
+```
+
+### PUT /persons/{employeeNo}/fingerprints/broadcast  ⭐ override on many
+Override an employee's fingerprints on **every** online device at once (or a
+subset via `targetDeviceIds`).
+```json
+{ "fingerprints": [ {"fingerPrintID":1,"fingerData":"<base64>"} ],
+  "targetDeviceIds": ["HRM02","HRM03"] }
+```
+```json
+{ "employeeNo": "E123", "fingerprintsPerDevice": 1, "devicesUpdated": 2,
+  "results": [ {"deviceId":"HRM02","previousDeleted":true,"inserted":1}, ... ] }
+```
 
 ### POST /fingerprints/sync  ⭐
 Cross-branch: read a person's template(s) from the source device and push them to

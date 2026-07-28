@@ -54,6 +54,8 @@ public final class SimulatedDeviceAdapter implements DeviceAdapter {
 
     @Override public List<Person> listPersons() { return new ArrayList<>(persons.values()); }
 
+    @Override public Person getPerson(String employeeNo) { return persons.get(employeeNo); }
+
     @Override public Result setPin(String employeeNo, String pin) {
         Person p = persons.get(employeeNo);
         if (p == null) return Result.fail("{\"subStatusCode\":\"employeeNoNotExist\"}");

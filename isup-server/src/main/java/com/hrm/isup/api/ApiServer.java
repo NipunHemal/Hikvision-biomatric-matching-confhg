@@ -6,6 +6,7 @@ import com.hrm.isup.Config;
 import com.hrm.isup.device.ConnectedDevice;
 import com.hrm.isup.device.DeviceAdapter;
 import com.hrm.isup.device.DeviceManager;
+import com.hrm.isup.device.EmployeeService;
 import com.hrm.isup.device.EnrollmentService;
 import com.hrm.isup.device.FingerprintSyncService;
 import com.hrm.isup.model.Fingerprint;
@@ -35,6 +36,7 @@ public final class ApiServer {
     private final DeviceManager manager;
     private final FingerprintSyncService sync;
     private final EnrollmentService enroll = new EnrollmentService();
+    private final EmployeeService employee = new EmployeeService();
     private final Gson gson = new Gson();
     private final java.util.Set<String> tokens = loadTokens();
 
@@ -153,6 +155,69 @@ public final class ApiServer {
                 return;
             }
 
+            // --- check an employee across ALL devices ---
+            //   GET /persons/{employeeNo}/exists → per-device exists + fingerprint count
+            if (m.equals("GET") && s.length == 3 && s[0].equals("persons")
+                    && !s[1].equals("broadcast") && s[2].equals("exists")) {
+                String emp = s[1];
+                JsonObject out = new JsonObject();
+                out.addProperty("employeeNo", emp);
+                var arr = new com.google.gson.JsonArray();
+                int on = 0;
+                for (ConnectedDevice d : manager.all()) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("deviceId", d.deviceId);
+                    o.addProperty("online", d.online);
+                    if (d.online) {
+                        Person p = d.adapter.getPerson(emp);
+                        o.addProperty("exists", p != null);
+                        if (p != null) {
+                            on++;
+                            o.addProperty("fingerprintCount", d.adapter.listFingerprints(emp).size());
+                        }
+                    } else {
+                        o.addProperty("exists", false);
+                        o.addProperty("reason", "offline");
+                    }
+                    arr.add(o);
+                }
+                out.addProperty("existsOnCount", on);
+                out.add("devices", arr);
+                json(ex, 200, gson.toJson(out));
+                return;
+            }
+
+            // --- override an employee's fingerprints on MULTIPLE devices ---
+            //   PUT /persons/{employeeNo}/fingerprints/broadcast
+            //       {fingerprints:[{fingerPrintID,fingerData}], targetDeviceIds?:[...]}
+            if (m.equals("PUT") && s.length == 4 && s[0].equals("persons")
+                    && s[2].equals("fingerprints") && s[3].equals("broadcast")) {
+                String emp = s[1];
+                JsonObject b = body(ex);
+                List<Fingerprint> fps = parseFingerprints(emp, b);
+                List<String> targets = new ArrayList<>();
+                if (b.has("targetDeviceIds"))
+                    b.getAsJsonArray("targetDeviceIds").forEach(e -> targets.add(e.getAsString()));
+
+                var results = new com.google.gson.JsonArray();
+                int done = 0;
+                for (ConnectedDevice d : manager.all()) {
+                    if (!d.online) continue;
+                    if (!targets.isEmpty() && !targets.contains(d.deviceId)) continue;
+                    JsonObject rep = employee.replaceFingerprints(d.adapter, emp, fps);
+                    rep.addProperty("deviceId", d.deviceId);
+                    results.add(rep);
+                    done++;
+                }
+                JsonObject out = new JsonObject();
+                out.addProperty("employeeNo", emp);
+                out.addProperty("fingerprintsPerDevice", fps.size());
+                out.addProperty("devicesUpdated", done);
+                out.add("results", results);
+                json(ex, 200, gson.toJson(out));
+                return;
+            }
+
             // --- devices ---
             if (m.equals("GET") && eq(s, "devices")) { json(ex, 200, gson.toJson(deviceList())); return; }
 
@@ -202,6 +267,24 @@ public final class ApiServer {
                 // Capture a card only (read the number, no assignment)
                 if (m.equals("POST") && seg(s, 2, "card") && s.length == 4 && s[3].equals("capture")) {
                     relay(ex, a.captureCard()); return;
+                }
+
+                // does this employee exist on this device?
+                if (m.equals("GET") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("exists")) {
+                    json(ex, 200, gson.toJson(employee.existsReport(a, s[3]))); return;
+                }
+                // full profile: person + fingerprints + cards + pin
+                if (m.equals("GET") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("details")) {
+                    json(ex, 200, gson.toJson(employee.details(a, s[3]))); return;
+                }
+                // override (replace) ALL of a person's fingerprints on this device
+                if (m.equals("PUT") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("fingerprints")) {
+                    List<Fingerprint> fps = parseFingerprints(s[3], body(ex));
+                    json(ex, 200, gson.toJson(employee.replaceFingerprints(a, s[3], fps))); return;
+                }
+                // delete ALL of a person's fingerprints on this device
+                if (m.equals("DELETE") && seg(s, 2, "persons") && s.length == 5 && s[4].equals("fingerprints")) {
+                    relay(ex, a.deleteFingerprint(s[3], null)); return;
                 }
 
                 // persons
@@ -308,6 +391,22 @@ public final class ApiServer {
     }
 
     private boolean seg(String[] s, int i, String v) { return s.length > i && s[i].equals(v); }
+
+    /** Parse a {fingerprints:[{fingerPrintID?,fingerData,fingerType?}]} body. */
+    private List<Fingerprint> parseFingerprints(String employeeNo, JsonObject b) {
+        List<Fingerprint> out = new ArrayList<>();
+        if (b.has("fingerprints")) {
+            for (var e : b.getAsJsonArray("fingerprints")) {
+                JsonObject o = e.getAsJsonObject();
+                int id = o.has("fingerPrintID") ? o.get("fingerPrintID").getAsInt() : (out.size() + 1);
+                Fingerprint fp = new Fingerprint(employeeNo, id, o.get("fingerData").getAsString());
+                if (o.has("fingerType")) fp.fingerType = o.get("fingerType").getAsString();
+                if (o.has("cardReaderNo")) fp.cardReaderNo = o.get("cardReaderNo").getAsInt();
+                out.add(fp);
+            }
+        }
+        return out;
+    }
 
     private JsonObject body(HttpExchange ex) throws IOException {
         try (InputStream in = ex.getRequestBody()) {

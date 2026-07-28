@@ -803,6 +803,188 @@
    ]
   },
   {
+   "name": "Employee query & override",
+   "item": [
+    {
+     "name": "Check exists (device)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Is this employee enrolled on this device? -> {exists, name?}",
+      "url": {
+       "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/exists",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "devices",
+        "{{deviceId}}",
+        "persons",
+        "{{employeeNo}}",
+        "exists"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
+    },
+    {
+     "name": "Get full details (device)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Full profile: person + fingerprints (with templates) + cards + pin.",
+      "url": {
+       "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/details",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "devices",
+        "{{deviceId}}",
+        "persons",
+        "{{employeeNo}}",
+        "details"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
+    },
+    {
+     "name": "Override fingerprints (device)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Delete ALL current fingerprints then insert the supplied set (1..many).",
+      "url": {
+       "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprints",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "devices",
+        "{{deviceId}}",
+        "persons",
+        "{{employeeNo}}",
+        "fingerprints"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"fingerprints\": [\n    {\n      \"fingerPrintID\": 1,\n      \"fingerData\": \"<base64-template-1>\"\n    },\n    {\n      \"fingerPrintID\": 2,\n      \"fingerData\": \"<base64-template-2>\"\n    }\n  ]\n}"
+      }
+     }
+    },
+    {
+     "name": "Delete ALL fingerprints (device)",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Remove every fingerprint for this person on this device.",
+      "url": {
+       "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/fingerprints",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "devices",
+        "{{deviceId}}",
+        "persons",
+        "{{employeeNo}}",
+        "fingerprints"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
+    },
+    {
+     "name": "Check exists across ALL devices",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Per-device existence + fingerprint count across every online device.",
+      "url": {
+       "raw": "{{hubUrl}}/persons/{{employeeNo}}/exists",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "persons",
+        "{{employeeNo}}",
+        "exists"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": ""
+      }
+     }
+    },
+    {
+     "name": "Override fingerprints (multi-device)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Replace fingerprints on many devices at once. Omit targetDeviceIds for ALL online.",
+      "url": {
+       "raw": "{{hubUrl}}/persons/{{employeeNo}}/fingerprints/broadcast",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "persons",
+        "{{employeeNo}}",
+        "fingerprints",
+        "broadcast"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"fingerprints\": [\n    {\n      \"fingerPrintID\": 1,\n      \"fingerData\": \"<base64-template-1>\"\n    },\n    {\n      \"fingerPrintID\": 2,\n      \"fingerData\": \"<base64-template-2>\"\n    }\n  ],\n  \"targetDeviceIds\": [\n    \"SIM02\",\n    \"SIM03\"\n  ]\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "Enrolment workflows (capture + assign)",
    "item": [
     {

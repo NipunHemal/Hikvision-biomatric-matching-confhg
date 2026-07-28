@@ -114,6 +114,48 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         return out;
     }
 
+    /** Targeted single-person lookup (device supports an EmployeeNoList filter). */
+    @Override public Person getPerson(String employeeNo) {
+        if (employeeNo == null) return null;
+        JsonObject emp = new JsonObject();
+        emp.addProperty("employeeNo", employeeNo);
+        JsonArray idList = new JsonArray();
+        idList.add(emp);
+        JsonObject cond = new JsonObject();
+        cond.addProperty("searchID", "person-" + System.nanoTime());
+        cond.addProperty("searchResultPosition", 0);
+        cond.addProperty("maxResults", 30);
+        cond.add("EmployeeNoList", idList);
+        JsonObject body = new JsonObject();
+        body.add("UserInfoSearchCond", cond);
+
+        Result r = tx.post("/ISAPI/AccessControl/UserInfo/Search?format=json", gson.toJson(body));
+        if (r.ok) {
+            JsonObject search = safeObj(r.body).getAsJsonObject("UserInfoSearch");
+            JsonArray arr = search == null ? null : search.getAsJsonArray("UserInfo");
+            if (arr != null) {
+                for (JsonElement e : arr) {
+                    JsonObject u = e.getAsJsonObject();
+                    if (employeeNo.equals(str(u, "employeeNo"))) return toPerson(u);
+                }
+            }
+        }
+        // Some firmwares ignore the filter — fall back to a full scan.
+        return DeviceAdapter.super.getPerson(employeeNo);
+    }
+
+    private Person toPerson(JsonObject u) {
+        Person p = new Person(str(u, "employeeNo"), str(u, "name"));
+        String ut = str(u, "userType");
+        if (ut != null) p.userType = ut;
+        JsonObject valid = u.getAsJsonObject("Valid");
+        if (valid != null) {
+            if (str(valid, "beginTime") != null) p.beginTime = str(valid, "beginTime");
+            if (str(valid, "endTime") != null) p.endTime = str(valid, "endTime");
+        }
+        return p;
+    }
+
     // --- PIN / password ---
     @Override public Result setPin(String employeeNo, String pin) {
         JsonObject user = new JsonObject();
