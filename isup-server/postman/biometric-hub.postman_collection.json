@@ -1,7 +1,7 @@
 {
  "info": {
   "name": "Biometric Device Hub — Full API (ISUP)",
-  "description": "Complete API of the Java ISUP hub. Branch terminals dial in over ISUP; the HRM drives them here over HTTP/JSON.\n\nSet the environment: hubUrl (e.g. http://161.97.135.43:8090), deviceId (ISUP Device ID e.g. HRM02), employeeNo, cardNo, fingerPrintID.\n\n{{deviceId}} must be ONLINE — check GET /devices. Offline device → 503.\n\nNOTE on PUNCH events: punches are pushed FROM the device (fingerprint/card/face/PIN auth). The hub forwards them to HRM_EVENT_URL (configured on the hub); they are not polled here. Use the /sim collection to simulate punches in dev.",
+  "description": "Biometric Device Hub - full HTTP API for the HRM. Collection-level Bearer auth ({{apiToken}}). Set the environment (hubUrl, apiToken, deviceId, employeeNo). 35 endpoints. Full reference: docs/API.md.",
   "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
  },
  "variable": [
@@ -1088,7 +1088,7 @@
         "value": "application/json"
        }
       ],
-      "description": "Reads the next card presented at the reader and returns {cardNo} — no assignment.",
+      "description": "Read a card at the reader (no assignment). Tap a card on the device; returns {cardNo, cardType?}. Blocks until a card is presented (~30-45s on real hardware). On failure returns {ok:false,error,deviceReply}.",
       "url": {
        "raw": "{{hubUrl}}/devices/{{deviceId}}/card/capture",
        "host": [
@@ -1117,7 +1117,7 @@
         "value": "application/json"
        }
       ],
-      "description": "Reads a card at the reader and assigns it to this person.",
+      "description": "Capture a card at the reader AND assign it to the person. Tap a card; returns {employeeNo, cardNo, assigned}. Blocks ~30-45s on real hardware.",
       "url": {
        "raw": "{{hubUrl}}/devices/{{deviceId}}/persons/{{employeeNo}}/card/capture",
        "host": [
