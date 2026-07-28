@@ -22,10 +22,8 @@ public final class EventSink {
     private final String hrmUrl = Config.get("HrmEventUrl");
 
     public void accept(AccessEvent event) {
-        System.out.println("[event] " + event.deviceId + " " + event.eventName
-                + " employee=" + event.employeeNo + " via=" + event.verifyMethod);
-
-        if (hrmUrl == null || hrmUrl.isEmpty()) return; // log-only mode
+        if (hrmUrl == null || hrmUrl.isEmpty()) return; // log-only mode (caller already logged)
+        System.out.println("[hrm-forward] " + event.deviceId + " -> " + hrmUrl);
 
         try {
             HttpRequest req = HttpRequest.newBuilder(URI.create(hrmUrl))

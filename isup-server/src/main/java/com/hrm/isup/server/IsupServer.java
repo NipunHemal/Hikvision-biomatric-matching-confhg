@@ -68,7 +68,10 @@ public final class IsupServer {
                 throw new RuntimeException("NET_ECMS_Init failed: " + cms.NET_ECMS_GetLastError());
             }
             setLocalCfg(5, lib + "HCAapSDKCom");
-            cms.NET_ECMS_SetLogToFile(3, System.getProperty("user.dir") + "/EHomeSDKLog", false);
+            // SDK log level: 0-none, 1-error, 2-+info, 3-+debug. Default 1 keeps the
+            // console readable so our [event]/[hub] lines aren't buried in MQTT DBG spam.
+            cms.NET_ECMS_SetLogToFile(Config.getInt("SdkLogLevel", 1),
+                    System.getProperty("user.dir") + "/EHomeSDKLog", false);
 
             // The alarm SDK is a SEPARATE library and needs its OWN crypto/SSL
             // libs loaded before init — without this, reusing the CMS port for
