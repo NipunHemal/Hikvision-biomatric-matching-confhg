@@ -67,7 +67,13 @@ public final class IsupServer {
             setLocalCfg(5, lib + "HCAapSDKCom");
             cms.NET_ECMS_SetLogToFile(3, System.getProperty("user.dir") + "/EHomeSDKLog", false);
 
+            // The alarm SDK is a SEPARATE library and needs its OWN crypto/SSL
+            // libs loaded before init — without this, reusing the CMS port for
+            // events fails (NET_EALARM_StartListen error 72).
+            alarm.NET_EALARM_SetSDKInitCfg(0, bytes(lib + (win ? "libeay32.dll" : "libcrypto.so")));
+            alarm.NET_EALARM_SetSDKInitCfg(1, bytes(lib + (win ? "ssleay32.dll" : "libssl.so")));
             alarm.NET_EALARM_Init();
+            alarm.NET_EALARM_SetSDKLocalCfg(5, bytes(lib + "HCAapSDKCom"));
             manager.setCms(cms);
 
             startCmsListen();
