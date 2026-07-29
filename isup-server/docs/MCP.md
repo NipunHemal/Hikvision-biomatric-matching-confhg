@@ -85,6 +85,37 @@ claude mcp add biometric-sim \
 Same shape in their `mcp.json` — `command: "node"`, `args: [".../mcp/index.js"]`,
 and the `env` block.
 
+### Google Antigravity
+Antigravity uses the **standard MCP `mcpServers` format**, so the same block works.
+
+1. Open **Settings** (gear icon) and find the **MCP** / **MCP Servers** section
+   (in the Agent/Tools settings). Choose **Add custom MCP server** → **Edit as JSON**
+   (or open the MCP config file it points to).
+2. Paste — merging into any existing `mcpServers`:
+   ```json
+   {
+     "mcpServers": {
+       "biometric-sim": {
+         "command": "node",
+         "args": ["D:/Temp/biomatric_matching/isup-server/mcp/index.js"],
+         "env": {
+           "HUB_URL": "http://161.97.135.43:8090",
+           "HUB_TOKEN": "hub_tGCxvFTLuEG3SSHFWikXVnvxxCy1QdYW"
+         }
+       }
+     }
+   }
+   ```
+3. **Save**, then **refresh/reload the MCP servers** (or restart Antigravity). The
+   `biometric-sim` tools appear in the Agent's tool list — enable them if prompted.
+
+Notes for Antigravity:
+- Use an **absolute path** in `args` (forward slashes work on Windows too).
+- If `node` isn't found, put the full path to node in `command`
+  (e.g. `C:/Program Files/nodejs/node.exe`), or run `npm install` in
+  `isup-server/mcp` first so dependencies exist.
+- The Agent must have tool use enabled; approve the tools when it first calls them.
+
 ### Environment variables
 
 | Var | Default | Meaning |
