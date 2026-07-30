@@ -14,7 +14,11 @@ object. It handles every shape a terminal sends:
 - `multipart/form-data` (a JSON/XML part + JPEG snapshots) — parsed or raw
 - an already-parsed object, a raw string, or a `Buffer`
 
-## Use
+Two files, same logic — use whichever your backend is:
+- `hikvision-event-parser.js` — CommonJS, plain Node
+- `hikvision-event-parser.ts` — TypeScript, fully typed (`DeviceEvent` return type)
+
+## Use (JavaScript)
 
 ```js
 const { parseDeviceEvent } = require('./hikvision-event-parser');
@@ -26,6 +30,25 @@ app.post('/webhook', (req, res) => {
   saveAttendance(event);               // your logic
 });
 ```
+
+## Use (TypeScript)
+
+```ts
+import { parseDeviceEvent, DeviceEvent } from './hikvision-event-parser';
+
+app.post('/webhook', (req: Request, res: Response) => {
+  res.sendStatus(200);
+  const event: DeviceEvent | null = parseDeviceEvent(req);
+  if (!event || event.isHeartbeat) return;
+  saveAttendance(event);               // event is fully typed
+});
+```
+
+- Needs `@types/node` (for `Buffer`). Compiles under `tsc`/`tsx`/`esbuild`/ts-node.
+- Under Node's raw `--experimental-strip-types`, import the type separately:
+  `import { parseDeviceEvent } from '...'; import type { DeviceEvent } from '...';`
+  (normal TS toolchains don't need this).
+- Exported types: `DeviceEvent`, `VerifyMethod`, `RequestLike`, `ParseOptions`, `ParserInput`.
 
 Already have the body?
 
