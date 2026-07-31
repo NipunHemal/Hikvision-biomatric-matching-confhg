@@ -703,6 +703,43 @@
    "description": "In-memory simulator — needs SIM_ENABLED=true. 1) add a device, 2) assign a webhook, 3) fire fake punches (they POST to the webhook exactly like real events), 4) generate check-in/out attendance and list generated events. Uses {{simDeviceId}} (default SIM01)."
   },
   {
+   "name": "Device webhook gateway (inbound)",
+   "description": "Devices PUSH events here; the hub normalizes and forwards to the backend. Public (own auth, not the HRM Bearer token).",
+   "item": [
+    {
+     "name": "Hikvision push (JSON)",
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "description": "Simulates a Hikvision terminal pushing an event to the gateway. Public route (no Bearer). deviceCode is in the path. Normalized event is forwarded to HRM_EVENT_URL. Add Basic auth / X-Webhook-Secret header if configured.",
+      "url": {
+       "raw": "{{hubUrl}}/webhook/hikvision/{{deviceId}}",
+       "host": [
+        "{{hubUrl}}"
+       ],
+       "path": [
+        "webhook",
+        "hikvision",
+        "{{deviceId}}"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ipAddress\": \"192.168.1.50\",\n  \"eventType\": \"AccessControllerEvent\",\n  \"dateTime\": \"2026-07-30T09:05:00+05:30\",\n  \"AccessControllerEvent\": {\n    \"majorEventType\": 5,\n    \"subEventType\": 38,\n    \"cardNo\": \"3820181185\",\n    \"serialNo\": 7\n  }\n}"
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "Device",
    "item": [
     {

@@ -710,6 +710,48 @@ List recent fake events generated for the device (verification).
 
 ---
 
+# Device webhook gateway (inbound)
+
+For terminals that **push** events over HTTP (not the ISUP dial-out path). The
+device POSTs its vendor payload here; the hub validates, normalizes it to the
+canonical event, and forwards it to `HRM_EVENT_URL` — the same shape ISUP-polled
+punches use. **Public** route (not Bearer-gated); it has its own validation.
+
+## POST /webhook/{vendor}/{deviceCode}
+`{vendor}` = `hikvision` (more brands = more parsers). `{deviceCode}` is your
+device ID — it becomes `deviceId` on the normalized event (the payload only carries
+the device IP). Accepts `application/json`, XML (`text/*`), and `multipart/form-data`
+(JSON/XML part + JPEG).
+
+**Auth** (not the HRM Bearer token): HTTP Basic (`DEVICE_WEBHOOK_BASIC_USER/PASS`)
+and/or a secret header (`DEVICE_WEBHOOK_SECRET` in `X-Webhook-Secret`). Open if
+neither is configured.
+
+```bash
+curl -X POST http://161.97.135.43:8090/webhook/hikvision/HRM01 \
+  -H "Content-Type: application/json" \
+  -d '{"ipAddress":"192.168.1.50","eventType":"AccessControllerEvent",
+       "dateTime":"2026-07-30T09:05:00+05:30",
+       "AccessControllerEvent":{"majorEventType":5,"subEventType":38,
+         "cardNo":"3820181185","serialNo":7}}'
+```
+→ hub logs `[gateway] HRM01 cardAuthSuccess ...` and forwards this to `HRM_EVENT_URL`:
+```json
+{ "deviceId":"HRM01","majorType":5,"minorType":38,"eventName":"cardAuthSuccess",
+  "verifyMethod":"card","success":1,"cardNo":"3820181185","serialNo":"7",
+  "time":"2026-07-30T09:05:00+05:30","eventType":"AccessControllerEvent", ... }
+```
+
+**Responses**: `200 {"ok":true,"result":"OK"}` (forwarded) · `200 {"result":"SKIPPED"}`
+(heartbeat / duplicate) · `400` (unparseable / missing deviceCode) · `401` (bad
+auth) · `403` (`DEVICE_WEBHOOK_ENABLED=0`) · `404` (unknown vendor).
+
+**Device setup (Hikvision):** point the terminal's HTTP event notification host at
+`http(s)://<hub>:8090/webhook/hikvision/<deviceCode>`, format JSON, with the Basic
+credentials above if set. Works whenever the device can reach the hub over HTTP.
+
+---
+
 # Endpoint index
 
 | # | Method | Path | Section |

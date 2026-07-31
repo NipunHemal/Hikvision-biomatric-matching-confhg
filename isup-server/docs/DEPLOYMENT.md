@@ -89,6 +89,10 @@ No file edits needed. (Names are underscore-insensitive: `EVENT_POLL_TZ` and
 | `DEVICE_STATUS_WEBHOOK_ENABLED` | `1` | Master on/off for the status webhook |
 | `DEVICE_STATUS_WEBHOOK_SECRET` | *(blank)* | Sent as a header for the backend to verify (optional) |
 | `DEVICE_STATUS_WEBHOOK_HEADER` | `X-Hub-Secret` | Header name carrying the secret |
+| `DEVICE_WEBHOOK_ENABLED` | `1` | Inbound device-webhook gateway on/off |
+| `DEVICE_WEBHOOK_BASIC_USER` / `_PASS` | *(blank)* | Optional HTTP Basic for incoming device webhooks |
+| `DEVICE_WEBHOOK_SECRET` | *(blank)* | Optional shared secret for incoming device webhooks |
+| `DEVICE_WEBHOOK_SECRET_HEADER` | `X-Webhook-Secret` | Header carrying that secret |
 | `SIM_ENABLED` | `false` | In-memory test devices. Keep `false` in prod |
 
 **Event polling (attendance / card taps)**
@@ -151,6 +155,30 @@ blocks the ISUP callbacks).
 `timestamp` is UTC ISO-8601. The hub ignores the response body (any 2xx is fine).
 
 Turn it off with `DEVICE_STATUS_WEBHOOK_ENABLED=0` or by leaving the URL blank.
+
+### Inbound device-webhook gateway (devices push → normalize → backend)
+
+For terminals that **push** events over HTTP (Hikvision "HTTP listening" / event
+notification host, and other brands), the hub exposes a normalizing gateway:
+
+```
+POST /webhook/{vendor}/{deviceCode}       e.g. /webhook/hikvision/HRM01
+```
+
+The device is configured to POST to its own URL (deviceCode in the path). The hub
+validates, parses the vendor payload (JSON / XML / multipart), normalizes it to the
+canonical event, and forwards it via `EventSink` to **`HRM_EVENT_URL`** — the *same*
+stream ISUP-polled punches use, so the backend sees one uniform shape from every
+brand. Adding a brand = one parser class (`WebhookParser`); the backend is unchanged.
+
+**Auth** (its own, not the HRM Bearer token): set `DEVICE_WEBHOOK_BASIC_USER/PASS`
+(matches Hikvision `httpAuthenticationMethod`) and/or `DEVICE_WEBHOOK_SECRET`
+(sent in `DEVICE_WEBHOOK_SECRET_HEADER`). Open if neither is set. `DEVICE_WEBHOOK_ENABLED=0`
+disables the gateway.
+
+Heartbeats (no credential) are accepted (`200`) but not forwarded; immediate
+duplicate retries (same `serialNo`) are dropped. Full request/response detail:
+[`docs/API.md`](API.md#device-webhook-gateway-inbound).
 
 ### Graceful startup — no crash without the native libs
 

@@ -35,6 +35,12 @@ services:
       DEVICE_STATUS_WEBHOOK_ENABLED: "${DEVICE_STATUS_WEBHOOK_ENABLED:-1}"
       DEVICE_STATUS_WEBHOOK_SECRET: "${DEVICE_STATUS_WEBHOOK_SECRET:-}"
       DEVICE_STATUS_WEBHOOK_HEADER: "${DEVICE_STATUS_WEBHOOK_HEADER:-X-Hub-Secret}"
+      # Inbound device webhook gateway (devices push events -> normalize -> HRM_EVENT_URL)
+      DEVICE_WEBHOOK_ENABLED: "${DEVICE_WEBHOOK_ENABLED:-1}"
+      DEVICE_WEBHOOK_BASIC_USER: "${DEVICE_WEBHOOK_BASIC_USER:-}"
+      DEVICE_WEBHOOK_BASIC_PASS: "${DEVICE_WEBHOOK_BASIC_PASS:-}"
+      DEVICE_WEBHOOK_SECRET: "${DEVICE_WEBHOOK_SECRET:-}"
+      DEVICE_WEBHOOK_SECRET_HEADER: "${DEVICE_WEBHOOK_SECRET_HEADER:-X-Webhook-Secret}"
       SIM_ENABLED: "${SIM_ENABLED:-false}"                 # in-memory test devices; false in prod
       SIM_PIN_MINOR: "${SIM_PIN_MINOR:-1}"                 # minor code for a simulated PIN punch
       # ── event polling (attendance/card taps) ──

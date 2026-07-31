@@ -41,6 +41,7 @@ public final class ApiServer {
     private final EmployeeService employee = new EmployeeService();
     private final EventSink sink;
     private final SimEventService simEvents;
+    private final com.hrm.isup.event.WebhookGateway gateway;
     private final Gson gson = new Gson();
     private final java.util.Set<String> tokens = loadTokens();
 
@@ -49,6 +50,7 @@ public final class ApiServer {
         this.sync = sync;
         this.sink = sink;
         this.simEvents = new SimEventService(sink);
+        this.gateway = new com.hrm.isup.event.WebhookGateway(sink);
     }
 
     /** Bearer tokens the HRM must present. From API_TOKENS (comma-sep) / API_TOKEN. */
@@ -99,6 +101,10 @@ public final class ApiServer {
                         + ",\"devices\":" + manager.all().size() + "}");
                 return;
             }
+
+            // --- inbound device webhook gateway (PUBLIC — own validation) ---
+            //   POST /webhook/{vendor}/{deviceCode}  (devices push here)
+            if (s.length >= 1 && s[0].equals("webhook")) { handleWebhook(ex, s); return; }
 
             // Everything else requires a valid Bearer token.
             if (!authorized(ex)) {
@@ -422,6 +428,42 @@ public final class ApiServer {
         } catch (Exception e) {
             json(ex, 500, err(e.getMessage()));
         }
+    }
+
+    // --- inbound device webhook gateway ---
+
+    /** POST /webhook/{vendor}/{deviceCode} — validate, normalize, forward to backend. */
+    private void handleWebhook(HttpExchange ex, String[] s) throws IOException {
+        if (!gateway.enabled()) { json(ex, 403, err("device webhook disabled")); return; }
+
+        String vendor = s.length > 1 ? s[1] : "";
+        String deviceCode = s.length > 2 ? s[2] : null;
+        if (vendor.isEmpty() || deviceCode == null || deviceCode.isEmpty()) {
+            json(ex, 400, err("use POST /webhook/{vendor}/{deviceCode}")); return;
+        }
+
+        // Own validation (NOT the HRM Bearer token).
+        String auth = ex.getRequestHeaders().getFirst("Authorization");
+        String secret = ex.getRequestHeaders().getFirst(gateway.secretHeader());
+        if (!gateway.authorize(auth, secret)) {
+            ex.getResponseHeaders().set("WWW-Authenticate", "Basic realm=\"device-webhook\"");
+            json(ex, 401, err("unauthorized device webhook")); return;
+        }
+
+        byte[] payload;
+        try (InputStream in = ex.getRequestBody()) { payload = in.readAllBytes(); }
+        String ct = ex.getRequestHeaders().getFirst("Content-Type");
+
+        var outcome = gateway.handle(vendor, deviceCode, payload, ct);
+        int code = switch (outcome.status()) {
+            case OK, SKIPPED -> 200;
+            case UNKNOWN_VENDOR -> 404;
+            case BAD_REQUEST -> 400;
+            case DISABLED -> 403;
+            case UNAUTHORIZED -> 401;
+        };
+        json(ex, code, "{\"ok\":" + (code == 200) + ",\"result\":\"" + outcome.status()
+                + "\",\"message\":" + gson.toJson(outcome.message()) + "}");
     }
 
     // --- operations spanning devices ---
