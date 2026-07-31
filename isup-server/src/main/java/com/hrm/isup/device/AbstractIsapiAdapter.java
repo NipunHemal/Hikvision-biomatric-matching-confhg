@@ -62,7 +62,7 @@ public abstract class AbstractIsapiAdapter implements DeviceAdapter {
         String json = gson.toJson(body);
 
         Result r = tx.post("/ISAPI/AccessControl/UserInfo/Record?format=json", json);
-        if (r.ok && r.body.contains("deviceUserAlreadyExist")) {
+        if (r.body != null && (r.body.contains("deviceUserAlreadyExist") || r.body.contains("employeeNoAlreadyExist") || r.body.contains("AlreadyExist"))) {
             return tx.put("/ISAPI/AccessControl/UserInfo/Modify?format=json", json);
         }
         return r;

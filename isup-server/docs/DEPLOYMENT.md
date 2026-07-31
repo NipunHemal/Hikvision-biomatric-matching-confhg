@@ -85,6 +85,10 @@ No file edits needed. (Names are underscore-insensitive: `EVENT_POLL_TZ` and
 | `ALARM_SERVER_IP` | `161.97.135.43` | Server's **public IP/domain** (devices dial it) |
 | `DAS_SERVER_IP` | `161.97.135.43` | Same public IP — DAS redirect target |
 | `HRM_EVENT_URL` | *(blank)* | Forward punch events here. Blank = log only |
+| `DEVICE_STATUS_WEBHOOK_URL` | *(blank)* | Backend endpoint for device online/offline events. Blank = off |
+| `DEVICE_STATUS_WEBHOOK_ENABLED` | `1` | Master on/off for the status webhook |
+| `DEVICE_STATUS_WEBHOOK_SECRET` | *(blank)* | Sent as a header for the backend to verify (optional) |
+| `DEVICE_STATUS_WEBHOOK_HEADER` | `X-Hub-Secret` | Header name carrying the secret |
 | `SIM_ENABLED` | `false` | In-memory test devices. Keep `false` in prod |
 
 **Event polling (attendance / card taps)**
@@ -121,6 +125,32 @@ redirect unreachable and devices loop without coming online.
 
 > Env var names accept either exact-key (`ISUPKey`) or UPPER_SNAKE (`ISUP_KEY`).
 > Use UPPER_SNAKE in Dokploy.
+
+### Device status webhook (online / offline → backend)
+
+When a terminal connects or disconnects over ISUP, the hub POSTs to
+`DEVICE_STATUS_WEBHOOK_URL`. It is **edge-triggered** (fires only on a real
+change, so keepalive re-registrations don't spam) and **fire-and-forget** (never
+blocks the ISUP callbacks).
+
+- **online** ← `ENUM_DEV_ON` (registration). `eventSource: "isup_registration"`.
+- **offline** ← `ENUM_DEV_OFF` (keepalive timeout / disconnect), or after repeated
+  failed event polls. `eventSource: "isup_keepalive_timeout"`.
+
+**Request** `POST {DEVICE_STATUS_WEBHOOK_URL}`
+(header `X-Hub-Secret: <DEVICE_STATUS_WEBHOOK_SECRET>` if a secret is set):
+```json
+{
+  "deviceCode": "HRMKpp",
+  "status": "online",
+  "timestamp": "2026-07-30T00:30:00Z",
+  "eventSource": "isup_registration"
+}
+```
+`deviceCode` is the device's ISUP Device ID. `status` is `online` | `offline`.
+`timestamp` is UTC ISO-8601. The hub ignores the response body (any 2xx is fine).
+
+Turn it off with `DEVICE_STATUS_WEBHOOK_ENABLED=0` or by leaving the URL blank.
 
 ### Graceful startup — no crash without the native libs
 

@@ -21,6 +21,8 @@ public final class DeviceManager {
 
     private volatile HCISUPCMS cms;   // null until the native ISUP SDK loads
     private final Map<String, ConnectedDevice> devices = new ConcurrentHashMap<>();
+    private final com.hrm.isup.event.DeviceStatusNotifier status =
+            new com.hrm.isup.event.DeviceStatusNotifier();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "model-detect");
         t.setDaemon(true);
@@ -44,6 +46,7 @@ public final class DeviceManager {
             existing.online = true;
             existing.lastSeen = System.currentTimeMillis();
             System.out.println("[hub] device reconnected: " + deviceId);
+            status.online(deviceId);      // edge-triggered — no-ops if already online
             scheduleModelDetect(existing);
             return existing;
         }
@@ -57,6 +60,7 @@ public final class DeviceManager {
                 tx, new GenericIsapiAdapter(tx, "detecting"));
         devices.put(deviceId, dev);
         System.out.println("[hub] device online: " + deviceId + " (detecting model...)");
+        status.online(deviceId);
         scheduleModelDetect(dev);
         return dev;
     }
@@ -93,6 +97,7 @@ public final class DeviceManager {
             d.online = false;
             if (d.transport != null) d.transport.setLoginId(-1);
             System.out.println("[hub] device offline: " + deviceId);
+            status.offline(deviceId);     // edge-triggered — no-ops if already offline
         }
     }
 

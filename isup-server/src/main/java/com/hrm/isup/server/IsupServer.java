@@ -138,6 +138,15 @@ public final class IsupServer {
         public boolean invoke(int lUserID, int dwDataType, Pointer pOutBuffer, int dwOutLen,
                               Pointer pInBuffer, int dwInLen, Pointer pUser) {
             switch (dwDataType) {
+                case HCISUPCMS.EHOME_REGISTER_TYPE.ENUM_DEV_OFF: {
+                    // Device dropped (ISUP keepalive timeout / disconnect).
+                    String deviceId = "";
+                    try { deviceId = trim(readRegInfo(pOutBuffer).struRegInfo.byDeviceID); }
+                    catch (Throwable ignored) { }
+                    System.out.println("[isup] ENUM_DEV_OFF device=" + deviceId);
+                    if (!deviceId.isEmpty()) manager.offline(deviceId);
+                    return true;
+                }
                 case HCISUPCMS.EHOME_REGISTER_TYPE.ENUM_DEV_ON: {
                     HCISUPCMS.NET_EHOME_DEV_REG_INFO_V12 reg = readRegInfo(pOutBuffer);
                     String deviceId = trim(reg.struRegInfo.byDeviceID);

@@ -30,6 +30,11 @@ services:
       ALARM_SERVER_IP: "${ALARM_SERVER_IP:-161.97.135.43}" # server PUBLIC IP/domain devices dial
       DAS_SERVER_IP: "${DAS_SERVER_IP:-161.97.135.43}"     # usually same as ALARM_SERVER_IP
       HRM_EVENT_URL: "${HRM_EVENT_URL:-}"                   # forward punch events here (blank=log only)
+      # Device status webhook (online/offline -> backend). Blank URL or ENABLED=0 = off.
+      DEVICE_STATUS_WEBHOOK_URL: "${DEVICE_STATUS_WEBHOOK_URL:-}"
+      DEVICE_STATUS_WEBHOOK_ENABLED: "${DEVICE_STATUS_WEBHOOK_ENABLED:-1}"
+      DEVICE_STATUS_WEBHOOK_SECRET: "${DEVICE_STATUS_WEBHOOK_SECRET:-}"
+      DEVICE_STATUS_WEBHOOK_HEADER: "${DEVICE_STATUS_WEBHOOK_HEADER:-X-Hub-Secret}"
       SIM_ENABLED: "${SIM_ENABLED:-false}"                 # in-memory test devices; false in prod
       SIM_PIN_MINOR: "${SIM_PIN_MINOR:-1}"                 # minor code for a simulated PIN punch
       # ── event polling (attendance/card taps) ──
