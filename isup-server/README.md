@@ -27,6 +27,9 @@ exposes a clean HTTP/JSON API to the HRM system.
 | [docs/ADD-MODEL.md](docs/ADD-MODEL.md) | Support a new device **model** (adapter) |
 | [docs/API.md](docs/API.md) | Full HTTP API reference |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker deployment to a server |
+| [docs/SIMULATOR.md](docs/SIMULATOR.md) | Test the whole API with no hardware (`SIM_ENABLED=true`) |
+| [docs/MCP.md](docs/MCP.md) | Drive the simulator from Claude/Antigravity/Cursor via MCP |
+| [docs/ANTIGRAVITY-TESTING.md](docs/ANTIGRAVITY-TESTING.md) | Full endpoint-by-endpoint test flow plan for Antigravity (MCP + direct calls) |
 
 ## Quick start (local dev — Windows)
 

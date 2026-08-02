@@ -192,3 +192,5 @@ Once connected, talk to your AI naturally. It picks the right tools.
 - It exposes the **simulator**; it does not need the native ISUP libraries.
 - Reference (install/config only): [`../mcp/README.md`](../mcp/README.md).
   Simulator details: [`SIMULATOR.md`](SIMULATOR.md). API: [`API.md`](API.md).
+- Full test plan covering every hub route (this server's 16 tools plus every
+  route it doesn't wrap, called directly): [`ANTIGRAVITY-TESTING.md`](ANTIGRAVITY-TESTING.md).

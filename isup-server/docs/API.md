@@ -794,6 +794,10 @@ credentials above if set. Works whenever the device can reach the hub over HTTP.
 
 ---
 
+> Want a runnable, step-by-step test pass over every route above (which ones
+> go through the MCP server vs. a direct call, and what to check at each
+> step)? See [ANTIGRAVITY-TESTING.md](ANTIGRAVITY-TESTING.md).
+
 # Typical HRM flows
 
 **Enroll an employee across all branches**
