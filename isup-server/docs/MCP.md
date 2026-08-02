@@ -123,26 +123,39 @@ Notes for Antigravity:
 | `HUB_URL` | `http://localhost:8090` | Hub base URL |
 | `HUB_TOKEN` | *(none)* | Bearer token; required unless the hub has auth off |
 
-## The tools (16)
+## The tools (42) — full API coverage
 
-| Tool | What it does |
+Every request in the Postman collection is available as a tool.
+
+**Hub / device:** `hub_health`, `list_devices`, `get_device`, `device_info`,
+`device_capabilities`, `control_door`
+
+**Persons:** `list_persons`, `seed_person`, `delete_person`, `person_exists`,
+`person_details`, `broadcast_person`, `broadcast_delete_person`,
+`person_exists_across`
+
+**PIN / cards:** `set_pin`, `assign_card`, `list_cards`, `delete_card`,
+`capture_card`, `capture_assign_card`
+
+**Fingerprints:** `list_fingerprints`, `push_fingerprint`, `enroll_fingerprint`,
+`enroll_fingerprint_bulk`, `capture_fingerprint`, `delete_fingerprint`,
+`delete_all_fingerprints`, `override_fingerprints`,
+`override_fingerprints_broadcast`, `sync_fingerprints` (⭐ cross-branch),
+`enroll_person`
+
+**Simulator** (needs `SIM_ENABLED=true`): `sim_add_device`, `sim_device_power`,
+`sim_remove_device`, `sim_set_webhook`, `sim_get_webhook`, `sim_set_device_webhook`,
+`sim_get_device_webhook`, `sim_punch`, `sim_punch_fingerprint_match`,
+`sim_attendance`, `sim_list_events`
+
+| Group | Tools |
 | --- | --- |
-| `hub_health` | Check the hub is reachable / ISUP-ready |
-| `list_devices` | List devices (real + simulated) |
-| `sim_add_device` | Add an in-memory device (`deviceId`, `model?`) |
-| `sim_device_power` | Bring a sim device online / offline |
-| `sim_remove_device` | Remove a sim device |
-| `sim_set_webhook` | Assign the **global** webhook (empty = clear) |
-| `sim_get_webhook` | Show the global webhook |
-| `sim_set_device_webhook` | Assign a **per-device** webhook (overrides global) |
-| `sim_get_device_webhook` | Show a device's effective webhook |
-| `seed_person` | Create a person (`employeeNo`, `name`) |
-| `enroll_fingerprint` | Capture + assign a fake fingerprint |
-| `assign_card` | Assign a card number to a person |
-| `sim_punch` | Fire a fake punch (fingerprint/card/pin/face/button), optional `time` |
-| `sim_punch_fingerprint_match` | Match a template → punch the owner if enrolled |
-| `sim_attendance` | Check-in + check-out punch per employee |
-| `sim_list_events` | List generated fake events |
+| Hub / device | 6 |
+| Persons | 8 |
+| PIN / cards | 6 |
+| Fingerprints + enrol | 11 |
+| Simulator | 11 |
+| **Total** | **42** |
 
 ## How to use it — a walkthrough
 

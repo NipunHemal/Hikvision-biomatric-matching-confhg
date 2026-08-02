@@ -62,25 +62,66 @@ Restart the tool; the `biometric-sim` tools appear.
 | `HUB_URL` | `http://localhost:8090` | Hub base URL |
 | `HUB_TOKEN` | *(none)* | Bearer token; required unless the hub has auth off |
 
-## Tools
+## Tools (42) — full API coverage
 
-| Tool | What it does |
+Covers every request in the Postman collection.
+
+**Hub / device**
+| Tool | Does |
 | --- | --- |
-| `hub_health` | Check the hub is reachable / ISUP-ready |
+| `hub_health` | Hub reachable / ISUP-ready |
 | `list_devices` | List devices (real + simulated) |
-| `sim_add_device` | Add an in-memory device (`deviceId`, `model?`) |
-| `sim_device_power` | Bring a sim device online/offline |
-| `sim_remove_device` | Remove a sim device |
-| `sim_set_webhook` | Assign the GLOBAL webhook events POST to (empty = clear) |
-| `sim_get_webhook` | Show the global webhook target |
-| `sim_set_device_webhook` | Assign a PER-DEVICE webhook (overrides global) |
-| `sim_get_device_webhook` | Show a device's effective webhook |
-| `seed_person` | Create a person (`employeeNo`, `name`) |
-| `enroll_fingerprint` | Capture + assign a fake fingerprint |
-| `assign_card` | Assign a card number to a person |
-| `sim_punch` | Fire a fake punch (fingerprint/card/pin/face/button), optional `time` |
-| `sim_punch_fingerprint_match` | Match a template → punch the owner if enrolled |
-| `sim_attendance` | Check-in + check-out punch per employee |
+| `get_device` | Brief info for one device |
+| `device_info` | Live `/ISAPI/System/deviceInfo` |
+| `device_capabilities` | What the model supports |
+| `control_door` | Open/close/hold a door |
+
+**Persons**
+| Tool | Does |
+| --- | --- |
+| `list_persons` | List enrolled persons |
+| `seed_person` | Create/update a person (`pin`/`beginTime`/`endTime` optional) |
+| `delete_person` | Remove from one device |
+| `person_exists` | Exists on this device? |
+| `person_details` | Full profile (person+fp+cards+pin) |
+| `broadcast_person` | Create/update on ALL online devices |
+| `broadcast_delete_person` | Remove from ALL online devices |
+| `person_exists_across` | Exists across ALL devices (+ fp counts) |
+
+**PIN / cards**
+| Tool | Does |
+| --- | --- |
+| `set_pin` | Set a person's PIN |
+| `assign_card` | Assign a known card number |
+| `list_cards` | List a person's cards |
+| `delete_card` | Remove one card |
+| `capture_card` | Read a card at the reader (no assign) |
+| `capture_assign_card` | Capture a card AND assign it |
+
+**Fingerprints**
+| Tool | Does |
+| --- | --- |
+| `list_fingerprints` | List a person's templates |
+| `push_fingerprint` | Push a Base64 template |
+| `enroll_fingerprint` | Capture + assign one finger |
+| `enroll_fingerprint_bulk` | Capture + assign several fingers |
+| `capture_fingerprint` | Scan a template only (no assign) |
+| `delete_fingerprint` | Remove one finger |
+| `delete_all_fingerprints` | Remove all fingers |
+| `override_fingerprints` | Replace all fingers (one device) |
+| `override_fingerprints_broadcast` | Replace fingers on many devices |
+| `sync_fingerprints` | ⭐ Cross-branch: copy fingers source → others |
+| `enroll_person` | Create person + optional capture+assign finger |
+
+**Simulator** (needs `SIM_ENABLED=true`)
+| Tool | Does |
+| --- | --- |
+| `sim_add_device` · `sim_device_power` · `sim_remove_device` | Device lifecycle |
+| `sim_set_webhook` · `sim_get_webhook` | Global webhook target |
+| `sim_set_device_webhook` · `sim_get_device_webhook` | Per-device webhook |
+| `sim_punch` | Fire a fake punch (fingerprint/card/pin/face/button) |
+| `sim_punch_fingerprint_match` | Match a template → punch the owner |
+| `sim_attendance` | Check-in + check-out per employee |
 | `sim_list_events` | List generated fake events |
 
 ## Example prompts (once configured)
