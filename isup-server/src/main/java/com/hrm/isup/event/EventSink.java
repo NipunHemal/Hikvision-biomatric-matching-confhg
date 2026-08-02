@@ -59,17 +59,49 @@ public final class EventSink {
     public void accept(AccessEvent event) {
         String target = webhookFor(event.deviceId);
         if (target == null) return; // log-only mode (caller already logged)
-        System.out.println("[hrm-forward] " + event.deviceId + " -> " + target);
+
+        Map<String, Object> payload = buildCustomPayload(event);
+        String jsonStr = gson.toJson(payload);
+        System.out.println("[hrm-forward] " + event.deviceId + " -> " + target + " payload: " + jsonStr);
 
         try {
             HttpRequest req = HttpRequest.newBuilder(URI.create(target))
                     .timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(event)))
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonStr))
                     .build();
             http.sendAsync(req, HttpResponse.BodyHandlers.discarding());
         } catch (Exception e) {
             System.err.println("[event] forward failed: " + e.getMessage());
         }
+    }
+
+    private static Map<String, Object> buildCustomPayload(AccessEvent event) {
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("deviceCode", event.deviceId != null ? event.deviceId : "");
+        map.put("employeeNo", event.employeeNo != null ? event.employeeNo : "");
+        map.put("punchTime", formatTime(event.time));
+        map.put("verifyMode", deriveVerifyMode(event));
+        return map;
+    }
+
+    private static String deriveVerifyMode(AccessEvent event) {
+        if (event.verifyMethod != null && !event.verifyMethod.isBlank()) {
+            return event.verifyMethod.toLowerCase();
+        }
+        if (event.verifyMode != null && !event.verifyMode.isBlank()) {
+            return event.verifyMode.toLowerCase();
+        }
+        if (event.cardNo != null && !event.cardNo.isBlank()) {
+            return "card";
+        }
+        return "fingerprint";
+    }
+
+    private static String formatTime(String timeStr) {
+        if (timeStr == null || timeStr.isBlank()) {
+            return java.time.Instant.now().toString();
+        }
+        return timeStr;
     }
 }
